@@ -23,17 +23,24 @@ class Mashiro {
     void InitGLFW();
     void InitWindow();
     void UpdateElapsedTime();
+    void ToggleFullscreen();
 
   private:
-    GLFWwindow *_window;
+    GLFWwindow *_window = NULL;
 
-    std::string _title;
-    int _width;
-    int _height;
+    std::string _title = "Mashiro";
+    int _width = 800;
+    int _height = 600;
 
-    double _elapsed_time;
-    double _last_time;
-    double _current_time;
+    double _elapsedTime = 0.0;
+    double _lastTime = 0.0;
+    double _currentTime = 0.0;
+    bool _fullscreen = false;
+
+    int _windowed_x = 0;
+    int _windowed_y = 0;
+    int _windowed_width  = 800;
+    int _windowed_height = 600;
 
   private:
 #pragma region GLFW Callbacks

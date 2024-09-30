@@ -7,19 +7,9 @@
 #include <Windows.h>
 #include <spdlog/spdlog.h>
 
-namespace GLFW {
-
-} // namespace GLFW
+namespace GLFW {} // namespace GLFW
 
 Mashiro::Mashiro() {
-    _window = NULL;
-    _width = 800;
-    _height = 600;
-    _title = "Mashiro";
-    _elapsed_time = 0.0;
-    _last_time = 0.0;
-    _current_time = 0.0;
-
     InitConsole();
     InitGLFW();
     InitWindow();
@@ -46,13 +36,14 @@ void Mashiro::InitGLFW() {
     glfwSetErrorCallback(GLFWErrorCallback);
     glfwSetMonitorCallback(GLFWMonitorCallback);
     glfwSetJoystickCallback(GLFWJoystickCallback);
-
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
-    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 }
 
 void Mashiro::InitWindow() {
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
+    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+    glfwWindowHint(GLFW_AUTO_ICONIFY, GLFW_FALSE);
+
     _window = glfwCreateWindow(_width, _height, _title.c_str(), NULL, NULL);
     if (!_window) {
         throw std::runtime_error("Failed to create window");
@@ -78,6 +69,8 @@ void Mashiro::InitWindow() {
 }
 
 Mashiro::~Mashiro() {
+    glfwDestroyWindow(_window);
+    glfwTerminate();
 }
 
 void Mashiro::Run() {
@@ -88,8 +81,8 @@ void Mashiro::Run() {
     }
 }
 
-void Mashiro::OnRender() {    
-    glClearColor(0.0f, 1.0f, 0.0f, 1.0f);
+void Mashiro::OnRender() {
+    glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
 
     glfwSwapBuffers(_window);
@@ -104,6 +97,7 @@ void Mashiro::OnResize(int width, int height) {
     // TODO: resize all framebuffers here
 }
 
+#pragma region GLFW Callbacks
 static Mashiro *GetGlfwWindowUserPointer(GLFWwindow *window) {
     auto pointer = glfwGetWindowUserPointer(window);
     if (!pointer) {
@@ -112,7 +106,6 @@ static Mashiro *GetGlfwWindowUserPointer(GLFWwindow *window) {
     return static_cast<Mashiro *>(pointer);
 }
 
-#pragma region GLFW Callbacks
 void Mashiro::GLFWErrorCallback(int error, const char *description) {
     spdlog::error("GLFW: {} {}", error, description);
 }
@@ -161,13 +154,46 @@ void Mashiro::GLFWWindowRefreshCallback(GLFWwindow *window) {
 }
 
 void Mashiro::UpdateElapsedTime() {
-    _last_time = _current_time;
-    _current_time = glfwGetTime();
-    _elapsed_time = _current_time - _last_time;
+    _lastTime = _currentTime;
+    _currentTime = glfwGetTime();
+    _elapsedTime = _currentTime - _lastTime;
+}
+
+void Mashiro::ToggleFullscreen() {
+    if (_fullscreen) {
+        glfwWindowHint(GLFW_DECORATED, GLFW_TRUE);
+        glfwSetWindowMonitor(_window, NULL, _windowed_x, _windowed_y, _windowed_width, _windowed_height,
+                             GLFW_DONT_CARE);
+        _fullscreen = false;
+    } else {
+        glfwGetWindowPos(_window, &_windowed_x, &_windowed_y);
+        glfwGetWindowSize(_window, &_windowed_width, &_windowed_height);
+
+        // TODO: get the current window monitor
+        // https://stackoverflow.com/a/31526753
+        auto monitor = glfwGetPrimaryMonitor();
+        if (!monitor) {
+            spdlog::error("Failed to find monitor");
+            return;
+        }
+        const GLFWvidmode *mode = glfwGetVideoMode(monitor);
+        glfwWindowHint(GLFW_RED_BITS, mode->redBits);
+        glfwWindowHint(GLFW_GREEN_BITS, mode->greenBits);
+        glfwWindowHint(GLFW_BLUE_BITS, mode->blueBits);
+        glfwWindowHint(GLFW_REFRESH_RATE, mode->refreshRate);
+
+        glfwWindowHint(GLFW_DECORATED, GLFW_FALSE);
+        glfwSetWindowMonitor(_window, NULL, 0, 0, mode->width, mode->height, 0);
+        _fullscreen = true;
+    }
 }
 
 void Mashiro::GLFWKeyCallback(GLFWwindow *window, int key, int scancode, int action, int mods) {
     auto mashiro = GetGlfwWindowUserPointer(window);
+
+    if (key == GLFW_KEY_F11 && action == GLFW_PRESS) {
+        mashiro->ToggleFullscreen();
+    }
 }
 
 void Mashiro::GLFWCharCallback(GLFWwindow *window, unsigned int codepoint) {
