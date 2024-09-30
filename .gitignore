@@ -1,0 +1,8 @@
+# IDE specific
+.vs/
+.vscode/
+.idea/
+
+# Generated data
+build/
+install/

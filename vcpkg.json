@@ -1,0 +1,8 @@
+{
+  "dependencies": [
+    "catch2",
+    "spdlog",
+    "cli11",
+    "wxwidgets"
+  ]
+}

@@ -1,0 +1,47 @@
+{
+    "version": 8,
+    "configurePresets": [{
+      "name": "windows-base",
+      "hidden": true,
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "installDir": "${sourceDir}/install/${presetName}",
+      "architecture": {
+        "value": "x64",
+        "strategy": "external"
+      },
+      "cacheVariables": {
+        "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+        "CMAKE_INSTALL_PREFIX": "${sourceDir}/install/${presetName}"
+      }
+    },
+      {
+        "inherits": "windows-base",
+        "name": "windows-debug",
+        "displayName": "Windows Debug",
+        "description": "Sets Ninja generator, build and install directory",
+        "cacheVariables": {
+          "CMAKE_BUILD_TYPE": "Debug"
+        }
+      },
+      {
+        "inherits": "windows-base",
+        "name": "windows-release",
+        "displayName": "Windows Release",
+        "description": "Sets Ninja generator, build and install directory",
+        "cacheVariables": {
+          "CMAKE_BUILD_TYPE": "Release"
+        }
+      }
+    ],
+    "packagePresets": [
+        {
+            "name": "default",
+            "configurePreset": "windows-release",
+            "generators": [
+                "ZIP"
+            ]
+        }
+    ]
+
+}
