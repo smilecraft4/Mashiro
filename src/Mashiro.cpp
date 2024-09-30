@@ -39,6 +39,8 @@ void Mashiro::InitGLFW() {
 }
 
 void Mashiro::InitWindow() {
+    InitCursors();
+
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
@@ -68,8 +70,54 @@ void Mashiro::InitWindow() {
     glfwSetFramebufferSizeCallback(_window, GLFWFramebufferSizeCallback);
 }
 
+// TODO: Create custom simple cursors
+void Mashiro::InitCursors() {
+    _cursor_select = glfwCreateStandardCursor(GLFW_ARROW_CURSOR);
+    _cursor_paint = glfwCreateStandardCursor(GLFW_CROSSHAIR_CURSOR);
+    _cursor_erase = glfwCreateStandardCursor(GLFW_IBEAM_CURSOR);
+    _cursor_pan = glfwCreateStandardCursor(GLFW_HAND_CURSOR);
+    _cursor_zoom = glfwCreateStandardCursor(GLFW_HRESIZE_CURSOR);
+    _cursor_rotate = glfwCreateStandardCursor(GLFW_VRESIZE_CURSOR);
+}
+
+void Mashiro::SetCursorState(State new_state) {
+    _cursor_state = new_state;
+
+    switch (new_state) {
+    case Mashiro::Painting:
+        glfwSetCursor(_window, _cursor_paint);
+        break;
+    case Mashiro::Erasing:
+        glfwSetCursor(_window, _cursor_erase);
+        break;
+    case Mashiro::Selecting:
+        glfwSetCursor(_window, _cursor_select);
+        break;
+    case Mashiro::Panning:
+        glfwSetCursor(_window, _cursor_pan);
+        break;
+    case Mashiro::Zooming:
+        glfwSetCursor(_window, _cursor_zoom);
+        break;
+    case Mashiro::Rotating:
+        glfwSetCursor(_window, _cursor_rotate);
+        break;
+    default:
+        glfwSetCursor(_window, _cursor_select);
+        break;
+    }
+}
+
 Mashiro::~Mashiro() {
     glfwDestroyWindow(_window);
+
+    glfwDestroyCursor(_cursor_select);
+    glfwDestroyCursor(_cursor_paint);
+    glfwDestroyCursor(_cursor_erase);
+    glfwDestroyCursor(_cursor_pan);
+    glfwDestroyCursor(_cursor_rotate);
+    glfwDestroyCursor(_cursor_zoom);
+
     glfwTerminate();
 }
 
@@ -194,6 +242,15 @@ void Mashiro::GLFWKeyCallback(GLFWwindow *window, int key, int scancode, int act
     if (key == GLFW_KEY_F11 && action == GLFW_PRESS) {
         mashiro->ToggleFullscreen();
     }
+
+    // FIXME: Fix bug when exiting and re-entering window (the cursor does not keep the correct state)
+    if (key == GLFW_KEY_SPACE) {
+        if (action == GLFW_PRESS) {
+            mashiro->SetCursorState(State::Panning);
+        } else if (action == GLFW_RELEASE) {
+            mashiro->SetCursorState(State::Painting);
+        }
+    }
 }
 
 void Mashiro::GLFWCharCallback(GLFWwindow *window, unsigned int codepoint) {
@@ -206,6 +263,11 @@ void Mashiro::GLFWCursorPosCallback(GLFWwindow *window, double xpos, double ypos
 
 void Mashiro::GLFWCursorEnterCallback(GLFWwindow *window, int entered) {
     auto mashiro = GetGlfwWindowUserPointer(window);
+    if (entered) {
+        mashiro->SetCursorState(mashiro->_cursor_state);
+    } else {
+        glfwSetCursor(window, NULL);
+    }
 }
 
 void Mashiro::GLFWMouseButtonCallback(GLFWwindow *window, int button, int action, int mods) {

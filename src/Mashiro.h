@@ -13,6 +13,14 @@ class Mashiro {
     ~Mashiro();
     void Run();
 
+    enum State {
+        Painting,
+        Erasing,
+        Selecting,
+        Panning,
+        Zooming,
+        Rotating,
+    };
 
   private:
     void OnResize(int width, int height);
@@ -22,11 +30,20 @@ class Mashiro {
     void InitConsole();
     void InitGLFW();
     void InitWindow();
+    void InitCursors();
+    void SetCursorState(State new_state);
     void UpdateElapsedTime();
     void ToggleFullscreen();
 
   private:
     GLFWwindow *_window = NULL;
+
+    GLFWcursor *_cursor_select = NULL;
+    GLFWcursor *_cursor_paint = NULL;
+    GLFWcursor *_cursor_erase = NULL;
+    GLFWcursor *_cursor_pan = NULL;
+    GLFWcursor *_cursor_zoom = NULL;
+    GLFWcursor *_cursor_rotate = NULL;
 
     std::string _title = "Mashiro";
     int _width = 800;
@@ -41,6 +58,9 @@ class Mashiro {
     int _windowed_y = 0;
     int _windowed_width  = 800;
     int _windowed_height = 600;
+
+    // TODO: Have a more proper state manager
+    State _cursor_state;
 
   private:
 #pragma region GLFW Callbacks
