@@ -7,6 +7,10 @@
 #include <Windows.h>
 #include <spdlog/spdlog.h>
 
+#include <imgui.h>
+#include <imgui_impl_glfw.h>
+#include <imgui_impl_opengl3.h>
+
 namespace GLFW {} // namespace GLFW
 
 Mashiro::Mashiro() {
@@ -14,6 +18,18 @@ Mashiro::Mashiro() {
     InitGLFW();
     InitWindow();
     InitOpenGL();
+    InitImGui();
+}
+
+void Mashiro::InitImGui() {
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGuiIO &io = ImGui::GetIO();
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+    io.Fonts->AddFontFromFileTTF("C:/Windows/Fonts/segoeui.ttf", 16);
+    io.Fonts->Build();
+    ImGui_ImplGlfw_InitForOpenGL(_window, true);
+    ImGui_ImplOpenGL3_Init();
 }
 
 void Mashiro::InitOpenGL() {
@@ -109,6 +125,10 @@ void Mashiro::SetCursorState(State new_state) {
 }
 
 Mashiro::~Mashiro() {
+    ImGui_ImplOpenGL3_Shutdown();
+    ImGui_ImplGlfw_Shutdown();
+    ImGui::DestroyContext();
+
     glfwDestroyWindow(_window);
 
     glfwDestroyCursor(_cursor_select);
@@ -126,12 +146,22 @@ void Mashiro::Run() {
 
     while (!glfwWindowShouldClose(_window)) {
         glfwPollEvents();
+
+        Render();
     }
 }
 
-void Mashiro::OnRender() {
+void Mashiro::Render() {
+    ImGui_ImplOpenGL3_NewFrame();
+    ImGui_ImplGlfw_NewFrame();
+    ImGui::NewFrame();
+    ImGui::ShowDemoWindow();
+
     glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
+
+    ImGui::Render();
+    ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
     glfwSwapBuffers(_window);
 }
@@ -198,7 +228,7 @@ void Mashiro::GLFWWindowRefreshCallback(GLFWwindow *window) {
     auto mashiro = GetGlfwWindowUserPointer(window);
 
     mashiro->UpdateElapsedTime();
-    mashiro->OnRender();
+    mashiro->Render();
 }
 
 void Mashiro::UpdateElapsedTime() {

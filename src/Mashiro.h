@@ -7,9 +7,23 @@
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
 
+/*
+* TODO
+* - Draw a square
+* - Create a texture on the square
+* - Paint in realtime on the square
+* - Have the Painting be persistant by opening a file with format .mshio
+* - Auto-save ?
+* - Move the viewport
+* - Zoom the viewport
+* - Rotate the viewport
+*/
+
+
 class Mashiro {
   public:
     Mashiro();
+    void InitImGui();
     ~Mashiro();
     void Run();
 
@@ -24,7 +38,7 @@ class Mashiro {
 
   private:
     void OnResize(int width, int height);
-    void OnRender();
+    void Render();
 
     void InitOpenGL();
     void InitConsole();
@@ -37,7 +51,7 @@ class Mashiro {
 
   private:
     GLFWwindow *_window = NULL;
-
+    GLFWmonitor *_monitor = NULL;
     GLFWcursor *_cursor_select = NULL;
     GLFWcursor *_cursor_paint = NULL;
     GLFWcursor *_cursor_erase = NULL;
@@ -52,15 +66,18 @@ class Mashiro {
     double _elapsedTime = 0.0;
     double _lastTime = 0.0;
     double _currentTime = 0.0;
-    bool _fullscreen = false;
 
     int _windowed_x = 0;
     int _windowed_y = 0;
-    int _windowed_width  = 800;
+    int _windowed_width = 800;
     int _windowed_height = 600;
 
     // TODO: Have a more proper state manager
-    State _cursor_state;
+    State _cursor_state = State::Painting;
+
+    bool _imgui_initialized = false;
+    bool _fullscreen = false;
+
 
   private:
 #pragma region GLFW Callbacks
