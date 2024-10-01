@@ -1,0 +1,13 @@
+#version 460 core
+layout(local_size_x = 32, local_size_y = 32) in;
+layout(rgba32f, binding = 0) uniform image2D canvas;
+
+uniform vec2 brush_pos;
+uniform vec4 brush_color;
+uniform float brush_size;
+
+void main() {
+	ivec2 canvas_pos = ivec2(gl_GlobalInvocationID.xy);
+	imageStore(canvas, canvas_pos, brush_color);
+	// change the pixel in the texture depending on the brush_color
+}

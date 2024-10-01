@@ -20,8 +20,9 @@ target_link_libraries(mashiro PRIVATE
 )
 
 target_sources(mashiro PRIVATE 
-    Main.cpp
-    Mashiro.h Mashiro.cpp
+    "Main.cpp"
+    "Mashiro.h" "Mashiro.cpp"
+    "Program.h" "Program.cpp"
 )
 
 # Install

@@ -5,6 +5,7 @@
     "cli11",
     "glfw3",
     "glad",
+    "glm",
     {
       "name": "imgui",
       "features": [

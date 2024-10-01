@@ -6,24 +6,38 @@
 
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
+#include <glad/glad.h>
+
+#include <glm/gtc/quaternion.hpp>
+#include <glm/mat4x4.hpp>
+#include <glm/vec2.hpp>
+#include <glm/vec3.hpp>
+#include <glm/vec4.hpp>
+
+#include "Program.h"
 
 /*
-* TODO
-* - Draw a square
-* - Create a texture on the square
-* - Paint in realtime on the square
-* - Have the Painting be persistant by opening a file with format .mshio
-* - Auto-save ?
-* - Move the viewport
-* - Zoom the viewport
-* - Rotate the viewport
-*/
+ * TODO
+ * - Draw a square
+ * - Create a texture on the square
+ * - Paint in realtime on the square
+ * - Have the Painting be persistant by opening a file with format .mshio
+ * - Auto-save ?
+ * - Move the viewport
+ * - Zoom the viewport
+ * - Rotate the viewport
+ */
 
+struct Vertex {
+    glm::vec2 pos;
+    glm::vec2 tex;
+};
+
+using Element = GLuint;
 
 class Mashiro {
   public:
     Mashiro();
-    void InitImGui();
     ~Mashiro();
     void Run();
 
@@ -40,14 +54,20 @@ class Mashiro {
     void OnResize(int width, int height);
     void Render();
 
+    void InitImGui();
     void InitOpenGL();
     void InitConsole();
     void InitGLFW();
     void InitWindow();
     void InitCursors();
+
+    void InitCanvas();
+
     void SetCursorState(State new_state);
     void UpdateElapsedTime();
     void ToggleFullscreen();
+
+    void UpdateCamera();
 
   private:
     GLFWwindow *_window = NULL;
@@ -77,10 +97,36 @@ class Mashiro {
 
     bool _imgui_initialized = false;
     bool _fullscreen = false;
+    bool _using_tool = false;
 
+    Program _canvas_program{};
+    Program _brush_compute_program{};
+
+    // TODO: replace by mesh class
+    GLuint _canvas_vao;
+    GLuint _canvas_vbo;
+    GLuint _canvas_ebo;
+
+    // TODO: replace by texture class
+    const int _canvas_width = 1024;
+    const int _canvas_height = 1024;
+    GLuint _canvas_background = 0;
+    GLuint _canvas_foreground = 0;
+
+    // TODO: replace by model class
+    glm::mat4 _canvas_model = glm::mat4(1.0f);
+
+    // TODO: replace by Camera class
+    glm::vec2 _camera_pos = glm::vec2(0.0f);
+    double _camera_zoom = 1.0;
+    double _camera_rot = 0.0;
+    glm::mat4 _camera_projection = glm::mat4(1.0f);
+    glm::mat4 _camera_view = glm::mat4(1.0f);
 
   private:
 #pragma region GLFW Callbacks
+    static void OpenGLMessageCallback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length,
+                                      GLchar const *message, void const *user_param);
     static void GLFWErrorCallback(int error, const char *description);
     static void GLFWMonitorCallback(GLFWmonitor *monitor, int event);
     static void GLFWWindowCloseCallback(GLFWwindow *window);
