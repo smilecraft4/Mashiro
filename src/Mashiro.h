@@ -41,6 +41,7 @@ class Mashiro {
     ~Mashiro();
     void Run();
 
+
     enum State {
         Painting,
         Erasing,
@@ -51,8 +52,8 @@ class Mashiro {
     };
 
   private:
-    void OnResize(int width, int height);
     void Render();
+    void Update();
 
     void InitImGui();
     void InitOpenGL();

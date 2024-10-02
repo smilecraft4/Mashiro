@@ -15,19 +15,14 @@
 
 #include <glm/gtc/type_ptr.hpp>
 
-static std::string LoadFile(std::filesystem::path filename) {
-    return "";
-}
-
 Mashiro::Mashiro() {
     InitConsole();
     InitGLFW();
     InitWindow();
     InitOpenGL();
-    // InitImGui();
+    //InitImGui();
 
     InitCanvas();
-
     UpdateCamera();
 }
 
@@ -35,7 +30,6 @@ void Mashiro::InitImGui() {
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGuiIO &io = ImGui::GetIO();
-    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
     io.Fonts->AddFontFromFileTTF("C:/Windows/Fonts/segoeui.ttf", 16);
     io.Fonts->Build();
     ImGui_ImplGlfw_InitForOpenGL(_window, true);
@@ -202,9 +196,9 @@ void Mashiro::SetCursorState(State new_state) {
 }
 
 Mashiro::~Mashiro() {
-    // ImGui_ImplOpenGL3_Shutdown();
-    // ImGui_ImplGlfw_Shutdown();
-    // ImGui::DestroyContext();
+    //ImGui_ImplOpenGL3_Shutdown();
+    //ImGui_ImplGlfw_Shutdown();
+    //ImGui::DestroyContext();
 
     glfwDestroyWindow(_window);
 
@@ -225,31 +219,34 @@ void Mashiro::Run() {
         UpdateElapsedTime();
         glfwPollEvents();
 
-        glfwSetWindowTitle(_window, std::format("{:.2f}ms", _elapsedTime * 1000.0).c_str());
-
-        if (_using_tool) {
-            if (_cursor_state == State::Painting) {
-                _brush_compute_program.Bind();
-
-                glm::vec4 brush_color = glm::vec4(sin(glfwGetTime()) / 2 + 0.5, 0.0f, 1.0f, 1.0f);
-
-                glUniform4fv(_brush_compute_program._uniforms["brush_color"].location, 1, glm::value_ptr(brush_color));
-                glBindImageTexture(0, _canvas_foreground, 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA32F);
-
-                glDispatchCompute(_canvas_width / 32, _canvas_height / 32, 1);
-                glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
-            }
-        }
-
+        Update();
         Render();
     }
 }
 
+void Mashiro::Update() {
+    glfwSetWindowTitle(_window, std::format("{:.2f}ms", _elapsedTime * 1000.0).c_str());
+
+    if (_using_tool) {
+        if (_cursor_state == State::Painting) {
+            _brush_compute_program.Bind();
+
+            glm::vec4 brush_color = glm::vec4(sin(glfwGetTime()) / 2 + 0.5, 0.0f, 1.0f, 1.0f);
+
+            glUniform4fv(_brush_compute_program._uniforms["brush_color"].location, 1, glm::value_ptr(brush_color));
+            glBindImageTexture(0, _canvas_foreground, 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA32F);
+
+            glDispatchCompute(_canvas_width / 32, _canvas_height / 32, 1);
+            glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+        }
+    }
+}
+
 void Mashiro::Render() {
-    // ImGui_ImplOpenGL3_NewFrame();
-    // ImGui_ImplGlfw_NewFrame();
-    // ImGui::NewFrame();
-    //  ImGui::ShowDemoWindow();
+    //ImGui_ImplOpenGL3_NewFrame();
+    //ImGui_ImplGlfw_NewFrame();
+    //ImGui::NewFrame();
+    //ImGui::ShowDemoWindow();
 
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
@@ -264,20 +261,12 @@ void Mashiro::Render() {
 
     glBindVertexArray(_canvas_vao);
     glDrawArrays(GL_TRIANGLES, 0, 6);
+    glBindVertexArray(0);
 
-    // ImGui::Render();
-    // ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+    //ImGui::Render();
+    //ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
     glfwSwapBuffers(_window);
-}
-
-void Mashiro::OnResize(int width, int height) {
-    _width = width;
-    _height = height;
-
-    glViewport(0, 0, width, height);
-
-    // TODO: resize all framebuffers here
 }
 
 #pragma region GLFW Callbacks
@@ -312,7 +301,10 @@ void Mashiro::GLFWWindowSizeCallback(GLFWwindow *window, int width, int height) 
 
 void Mashiro::GLFWFramebufferSizeCallback(GLFWwindow *window, int width, int height) {
     auto mashiro = GetGlfwWindowUserPointer(window);
-    mashiro->OnResize(width, height);
+    mashiro->_width = width;
+    mashiro->_height = height;
+
+    glViewport(0, 0, width, height);
 }
 
 void Mashiro::GLFWWindowContentScaleCallback(GLFWwindow *window, float xscale, float yscale) {
