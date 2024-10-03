@@ -51,6 +51,11 @@ class Mashiro {
         Rotating,
     };
 
+    glm::vec2 CursorToScreen(glm::vec2 window);
+    glm::vec2 ViewportToScreen(glm::vec2 viewport);
+    glm::vec2 ViewportToCanvas(glm::vec2 viewport);
+    glm::vec2 ViewportToTile(glm::vec2 viewport);
+
   private:
     void Render();
     void Update();
@@ -68,7 +73,9 @@ class Mashiro {
     void UpdateElapsedTime();
     void ToggleFullscreen();
 
-    void UpdateCamera();
+    void UpdateCamera();    
+
+
 
   private:
     GLFWwindow *_window = NULL;
@@ -88,6 +95,10 @@ class Mashiro {
     double _lastTime = 0.0;
     double _currentTime = 0.0;
 
+    glm::dvec2 _mouse_pos_current = glm::dvec2(0.0);
+    glm::dvec2 _mouse_pos_previous = glm::dvec2(0.0);
+    glm::dvec2 _mouse_delta = glm::dvec2(0.0);
+
     int _windowed_x = 0;
     int _windowed_y = 0;
     int _windowed_width = 800;
@@ -99,6 +110,11 @@ class Mashiro {
     bool _imgui_initialized = false;
     bool _fullscreen = false;
     bool _using_tool = false;
+    bool _navitating = false;
+
+    bool _rotating = false;
+    bool _panning = false;
+    bool _zooming = false;
 
     Program _canvas_program{};
     Program _brush_compute_program{};
@@ -109,8 +125,8 @@ class Mashiro {
     GLuint _canvas_ebo;
 
     // TODO: replace by texture class
-    const int _canvas_width = 1024;
-    const int _canvas_height = 1024;
+    const int _canvas_width = 512;
+    const int _canvas_height = 512;
     GLuint _canvas_background = 0;
     GLuint _canvas_foreground = 0;
 
@@ -123,6 +139,11 @@ class Mashiro {
     double _camera_rot = 0.0;
     glm::mat4 _camera_projection = glm::mat4(1.0f);
     glm::mat4 _camera_view = glm::mat4(1.0f);
+
+    glm::vec2 _brush_pos;
+    glm::vec2 _brush_size;
+    float _brush_pressure;
+    float _brush_tilt;
 
   private:
 #pragma region GLFW Callbacks

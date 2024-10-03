@@ -2,17 +2,53 @@
 layout(local_size_x = 32, local_size_y = 32) in;
 layout(rgba32f, binding = 0) writeonly uniform image2D canvas;
 
+uniform ivec2 tile_pos;
+uniform ivec2 tile_size;
+
+// TODO: convert this to UBO array struct
 uniform vec2 brush_pos;
-uniform vec2 brush_previous_pos;
 uniform vec4 brush_color;
-uniform float brush_size;
-uniform float brush_velocity;
+uniform vec2 brush_size;
+
+// TODO: change this to a matrix
+// TODO: convert to a UBO struct
+uniform ivec2 viewport_size;
+uniform float viewport_rotation;
+uniform float viewport_zoom;
+uniform mat4 viewport_mat;
+
+uniform bool focused;
+
+// Canvas space express the position of each object using px has a unit,
+// so if the tile size is 512px, then a (1,9) access the pixel (on the canvas) at 1px, 9px 
+// to see if the (1,9) figures on a certain tile we can do (tile_pos * tile_size)
+
+// Move this to 
+// TODO: Add a debug tool to preview the tiles border
+// [min, max[
+bool TileAABB(vec2 pos) {
+	vec2 tile_max = (tile_pos * tile_size) + (tile_size / 2);
+	vec2 tile_min = (tile_pos * tile_size) - (tile_size / 2);
+
+	bool over_min = pos.x >= tile_min.x && pos.y >= tile_min.y;
+	bool under_max = pos.x < tile_max.x && pos.y < tile_max.y;
+
+	return over_min && under_max;
+}
 
 void main() {
-	ivec2 canvas_pos = ivec2(gl_GlobalInvocationID.xy);
+	ivec2 texel_pos = ivec2(gl_GlobalInvocationID.xy);
+	if(focused) {
+		imageStore(canvas, texel_pos, vec4(1.0, 0.5, 0.5, 1.0));
+	} else {	
+		imageStore(canvas, texel_pos, vec4(1.0));
+	}
 
-	float d = distance(canvas_pos, );
+	// convert brush pos to canvas_pos
+	// convert tile_pos to canvas_pos
+	// check if the brush has influence over this pixel
+	// 
 
-	imageStore(canvas, canvas_pos, brush_color);
+
 	// change the pixel in the texture depending on the brush_color
 }

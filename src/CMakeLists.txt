@@ -23,8 +23,14 @@ target_sources(mashiro PRIVATE
     "Main.cpp"
     "Mashiro.h" "Mashiro.cpp"
     "Program.h" "Program.cpp"
+    "Tool.h" "Tool.cpp"
+    "Canvas.h" 
+    "Brush.h"     
+    "Tile.h"
+    "Viewport.h"
+    "Texture.h"
+    "Coordinates.h" 
 )
-
 # Install
 
 install(TARGETS mashiro

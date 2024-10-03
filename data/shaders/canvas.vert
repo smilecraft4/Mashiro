@@ -7,6 +7,9 @@ out vec2 v_texcoord;
 
 uniform mat4 MV;
 
+uniform vec2 screen_size;
+uniform vec2 tile_size;
+
 void main() {
 	v_position = position;
 	v_texcoord = texcoord;

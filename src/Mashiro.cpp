@@ -5,6 +5,7 @@
 #include <stdexcept>
 #include <string>
 
+#define NOMINMAX
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
 #include <spdlog/spdlog.h>
@@ -20,9 +21,17 @@ Mashiro::Mashiro() {
     InitGLFW();
     InitWindow();
     InitOpenGL();
-    //InitImGui();
+    // InitImGui();
 
     InitCanvas();
+
+    double x, y;
+    glfwGetCursorPos(_window, &x, &y);
+    _mouse_pos_previous.x = x;
+    _mouse_pos_previous.y = y;
+    _mouse_pos_current.x = x;
+    _mouse_pos_current.y = y;
+
     UpdateCamera();
 }
 
@@ -136,7 +145,7 @@ void Mashiro::InitCanvas() {
 
     // Create background texture
 
-    const std::vector<std::uint32_t> _canvas_background_pixels(_canvas_width * _canvas_height, 0xF00FFFFF);
+    const std::vector<std::uint32_t> _canvas_background_pixels(_canvas_width * _canvas_height, 0xFFFFFFFF);
 
     // TODO: change to a Texture2DArray to support instanced drawing
     glCreateTextures(GL_TEXTURE_2D, 1, &_canvas_background);
@@ -196,9 +205,9 @@ void Mashiro::SetCursorState(State new_state) {
 }
 
 Mashiro::~Mashiro() {
-    //ImGui_ImplOpenGL3_Shutdown();
-    //ImGui_ImplGlfw_Shutdown();
-    //ImGui::DestroyContext();
+    // ImGui_ImplOpenGL3_Shutdown();
+    // ImGui_ImplGlfw_Shutdown();
+    // ImGui::DestroyContext();
 
     glfwDestroyWindow(_window);
 
@@ -219,6 +228,10 @@ void Mashiro::Run() {
         UpdateElapsedTime();
         glfwPollEvents();
 
+        glfwGetCursorPos(_window, &_mouse_pos_current.x, &_mouse_pos_current.y);
+        _mouse_delta = glm::dvec2(glm::vec2(_mouse_pos_previous - _mouse_pos_current));
+        _mouse_pos_previous = _mouse_pos_current;
+
         Update();
         Render();
     }
@@ -228,14 +241,40 @@ void Mashiro::Update() {
     glfwSetWindowTitle(_window, std::format("{:.2f}ms", _elapsedTime * 1000.0).c_str());
 
     if (_using_tool) {
+        switch (_cursor_state) {
+        case State::Panning:
+            _camera_pos += glm::vec2(_mouse_delta) / glm::vec2(-(float)_width, (float)_height);
+            UpdateCamera();
+            break;
+        case State::Rotating:
+            _camera_rot += _mouse_delta.y * 0.1;
+            _camera_rot = std::fmodf(_camera_rot, 360);
+            if (_camera_rot < 0) {
+                _camera_rot += 360.0f;
+            }
+            UpdateCamera();
+            break;
+        case State::Zooming:
+            _camera_zoom += _mouse_delta.y * 0.001;
+            _camera_zoom = std::min(std::max(_camera_zoom, 0.2), 10.0);
+            spdlog::info("zoom: {}", _camera_zoom);
+            UpdateCamera();
+            break;
+        case State::Painting:
+            _brush_compute_program.Bind();
+            glUniform1i(_brush_compute_program._uniforms["focused"].location, 1);
+            glBindImageTexture(0, _canvas_foreground, 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA32F);
+            glDispatchCompute(_canvas_width / 32, _canvas_height / 32, 1);
+            glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+            break;
+        default:
+            break;
+        }
+    } else {
         if (_cursor_state == State::Painting) {
             _brush_compute_program.Bind();
-
-            glm::vec4 brush_color = glm::vec4(sin(glfwGetTime()) / 2 + 0.5, 0.0f, 1.0f, 1.0f);
-
-            glUniform4fv(_brush_compute_program._uniforms["brush_color"].location, 1, glm::value_ptr(brush_color));
+            glUniform1i(_brush_compute_program._uniforms["focused"].location, 0);
             glBindImageTexture(0, _canvas_foreground, 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA32F);
-
             glDispatchCompute(_canvas_width / 32, _canvas_height / 32, 1);
             glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
         }
@@ -243,16 +282,21 @@ void Mashiro::Update() {
 }
 
 void Mashiro::Render() {
-    //ImGui_ImplOpenGL3_NewFrame();
-    //ImGui_ImplGlfw_NewFrame();
-    //ImGui::NewFrame();
-    //ImGui::ShowDemoWindow();
+    // ImGui_ImplOpenGL3_NewFrame();
+    // ImGui_ImplGlfw_NewFrame();
+    // ImGui::NewFrame();
+    // ImGui::ShowDemoWindow();
 
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
 
     _canvas_program.Bind();
-    glUniformMatrix4fv(_canvas_program._uniforms["MV"].location, 1, GL_FALSE, glm::value_ptr(_camera_view));
+
+    auto model = glm::mat4(1.0f);
+    model = glm::scale(model, glm::vec3(512.0f / _width, 512.0f / _height, 1.0f));
+
+    const auto camera_mv = _camera_projection * _camera_view * model;
+    glUniformMatrix4fv(_canvas_program._uniforms["MV"].location, 1, GL_FALSE, glm::value_ptr(camera_mv));
     glUniform1i(_canvas_program._uniforms["canvas_background"].location, 0);
     glUniform1i(_canvas_program._uniforms["canvas_foreground"].location, 1);
 
@@ -263,8 +307,8 @@ void Mashiro::Render() {
     glDrawArrays(GL_TRIANGLES, 0, 6);
     glBindVertexArray(0);
 
-    //ImGui::Render();
-    //ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+    // ImGui::Render();
+    // ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
     glfwSwapBuffers(_window);
 }
@@ -281,11 +325,11 @@ static Mashiro *GetGlfwWindowUserPointer(GLFWwindow *window) {
 void Mashiro::OpenGLMessageCallback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length,
                                     GLchar const *message, void const *user_param) {
     // spdlog::warn("Implement opengl callback");
-    spdlog::info("{}", message);
+    spdlog::info("[OPENGL]: {}", message);
 }
 
 void Mashiro::GLFWErrorCallback(int error, const char *description) {
-    spdlog::error("GLFW: {} {}", error, description);
+    spdlog::error("[GLFW]: {} {}", error, description);
 }
 
 void Mashiro::GLFWMonitorCallback(GLFWmonitor *monitor, int event) {
@@ -305,6 +349,25 @@ void Mashiro::GLFWFramebufferSizeCallback(GLFWwindow *window, int width, int hei
     mashiro->_height = height;
 
     glViewport(0, 0, width, height);
+
+    float ortho_size = 1.0f;
+
+    float aspect_ratio = (float)width / (float)height;
+    if (aspect_ratio >= 1.0f) {
+        float left = -ortho_size * aspect_ratio;
+        float right = ortho_size * aspect_ratio;
+        float bottom = -ortho_size;
+        float top = ortho_size;
+        mashiro->_camera_projection = glm::ortho(left, right, bottom, top);
+    } else {
+        float left = -ortho_size;
+        float right = ortho_size;
+        float bottom = -ortho_size / aspect_ratio;
+        float top = ortho_size / aspect_ratio;
+        mashiro->_camera_projection = glm::ortho(left, right, bottom, top);
+    }
+
+    mashiro->_camera_projection = glm::ortho(-ortho_size, ortho_size, -ortho_size, ortho_size);
 }
 
 void Mashiro::GLFWWindowContentScaleCallback(GLFWwindow *window, float xscale, float yscale) {
@@ -370,11 +433,15 @@ void Mashiro::ToggleFullscreen() {
 }
 
 void Mashiro::UpdateCamera() {
-    auto view = glm::mat4(1.0f);
-    view = glm::translate(view, glm::vec3(_camera_pos, 0.0f));
-    view = glm::rotate(view, glm::radians((float)_camera_rot), glm::vec3(0.0, 0.0, 1.0));
-    view = glm::scale(view, glm::vec3((float)_camera_zoom));
-    _camera_view = view;
+    // auto view = glm::mat4(1.0f);
+    // view = glm::translate(view, glm::vec3(_camera_pos, 0.0f));
+    // view = glm::rotate(view, glm::radians((float)_camera_rot), glm::vec3(0.0, 0.0, 1.0));
+    // view = glm::scale(view, glm::vec3((float)_camera_zoom));
+
+    _camera_view = glm::mat4(1.0f);
+    _camera_view = glm::translate(_camera_view, glm::vec3(_camera_pos, 0.0f));
+    _camera_view = glm::rotate(_camera_view, glm::radians((float)_camera_rot), glm::vec3(0.0, 0.0, 1.0));
+    _camera_view = glm::scale(_camera_view, glm::vec3((float)_camera_zoom));
 }
 
 void Mashiro::GLFWKeyCallback(GLFWwindow *window, int key, int scancode, int action, int mods) {
@@ -384,14 +451,64 @@ void Mashiro::GLFWKeyCallback(GLFWwindow *window, int key, int scancode, int act
         mashiro->ToggleFullscreen();
     }
 
+    if (action != GLFW_REPEAT) {
+        spdlog::info("key:{}, scancode:{}, action:{}, mods:{} ", key, scancode, action, mods);
+    }
+
     // FIXME: Fix bug when exiting and re-entering window (the cursor does not keep the correct state)
-    if (key == GLFW_KEY_SPACE) {
-        if (action == GLFW_PRESS) {
-            mashiro->SetCursorState(State::Panning);
-        } else if (action == GLFW_RELEASE) {
-            mashiro->SetCursorState(State::Painting);
+
+    // mashiro->_rotating = false;
+    // mashiro->_panning = false;
+    // mashiro->_zooming = false;
+
+    if (action != GLFW_REPEAT) {
+        if (key == GLFW_KEY_SPACE) {
+            mashiro->_panning = action;
+
+            if (mods & GLFW_MOD_SHIFT) {
+                mashiro->_rotating = action;
+            }
+
+            if (mods & GLFW_MOD_CONTROL) {
+                mashiro->_zooming = action;
+            }
+        }
+
+        if (key == GLFW_KEY_LEFT_SHIFT || key == GLFW_KEY_RIGHT_SHIFT) {
+            mashiro->_rotating = action;
+        }
+
+        if (key == GLFW_KEY_LEFT_CONTROL || key == GLFW_KEY_RIGHT_CONTROL) {
+            mashiro->_zooming = action;
         }
     }
+
+    if (mashiro->_zooming) {
+        mashiro->SetCursorState(State::Zooming);
+    } else if (mashiro->_rotating) {
+        mashiro->SetCursorState(State::Rotating);
+    } else if (mashiro->_panning) {
+        mashiro->SetCursorState(State::Panning);
+    } else {
+        mashiro->SetCursorState(State::Painting);
+    }
+
+    /*
+
+    if (key == GLFW_KEY_SPACE && mods & GLFW_MOD_SHIFT && action == GLFW_PRESS) {
+        mashiro->SetCursorState(State::Rotating);
+        spdlog::warn("State::Rotating");
+    }
+
+    if (key == GLFW_KEY_SPACE && mods & GLFW_MOD_CONTROL && action == GLFW_PRESS) {
+        mashiro->SetCursorState(State::Zooming);
+        spdlog::warn("State::Zooming");
+    }
+
+    if (action == GLFW_RELEASE && key == GLFW_KEY_SPACE) {
+        mashiro->SetCursorState(State::Painting);
+        spdlog::warn("State::Painting");
+    }*/
 }
 
 void Mashiro::GLFWCharCallback(GLFWwindow *window, unsigned int codepoint) {
@@ -400,13 +517,6 @@ void Mashiro::GLFWCharCallback(GLFWwindow *window, unsigned int codepoint) {
 
 void Mashiro::GLFWCursorPosCallback(GLFWwindow *window, double xpos, double ypos) {
     auto mashiro = GetGlfwWindowUserPointer(window);
-
-    if (mashiro->_cursor_state == State::Panning) {
-        spdlog::info("{} {}", xpos, ypos);
-        mashiro->_camera_pos += glm::vec2((float)xpos, (float)ypos) * 0.000001f;
-
-        mashiro->UpdateCamera();
-    }
 }
 
 void Mashiro::GLFWCursorEnterCallback(GLFWwindow *window, int entered) {
@@ -424,9 +534,14 @@ void Mashiro::GLFWMouseButtonCallback(GLFWwindow *window, int button, int action
     if (button == GLFW_MOUSE_BUTTON_LEFT) {
         if (action == GLFW_PRESS) {
             mashiro->_using_tool = true;
+            glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+            glfwSetInputMode(window, GLFW_RAW_MOUSE_MOTION, GLFW_TRUE);
         }
         if (action == GLFW_RELEASE) {
             mashiro->_using_tool = false;
+            glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+            mashiro->SetCursorState(mashiro->_cursor_state);
+            glfwSetInputMode(window, GLFW_RAW_MOUSE_MOTION, GLFW_FALSE);
         }
     }
 }
