@@ -3,6 +3,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <spdlog/spdlog.h>
+#include <stb_image.h>
 
 CMRC_DECLARE(mashiro);
 
@@ -24,6 +25,26 @@ App::App() : _data(cmrc::mashiro::get_filesystem()) {
     _window = glfwCreateWindow(_width, _height, _title.c_str(), nullptr, nullptr);
     assert(_window && "Failed to create window");
     glfwSetWindowUserPointer(_window, this);
+
+    GLFWimage icons[3]{};
+    {
+        const auto icon_16_file = _data.open("images/icon_16x16.png");
+        std::vector<unsigned char> icon_16(icon_16_file.begin(), icon_16_file.end());
+        icons[0].pixels = stbi_load_from_memory(icon_16.data(), icon_16.size(), &icons[0].width, &icons[0].height,
+                                                nullptr, STBI_rgb_alpha);
+
+        const auto icon_32_file = _data.open("images/icon_32x32.png");
+        std::vector<unsigned char> icon_32(icon_32_file.begin(), icon_32_file.end());
+        icons[1].pixels = stbi_load_from_memory(icon_32.data(), icon_32.size(), &icons[1].width, &icons[1].height,
+                                                nullptr, STBI_rgb_alpha);
+
+        const auto icon_48_file = _data.open("images/icon_48x48.png");
+        std::vector<unsigned char> icon_48(icon_48_file.begin(), icon_48_file.end());
+        icons[2].pixels = stbi_load_from_memory(icon_48.data(), icon_48.size(), &icons[2].width, &icons[2].height,
+                                                nullptr, STBI_rgb_alpha);
+    }
+
+    glfwSetWindowIcon(_window, 3, icons);
 
     glfwMakeContextCurrent(_window);
     gladLoadGLLoader((GLADloadproc)glfwGetProcAddress);

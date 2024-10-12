@@ -5,6 +5,7 @@
     "glm",
     "catch2",
     "spdlog",
-    "cmakerc"
+    "cmakerc",
+    "stb"
   ]
 }
