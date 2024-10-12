@@ -1,17 +1,10 @@
 {
   "dependencies": [
-    "catch2",
-    "spdlog",
-    "cli11",
     "glfw3",
     "glad",
     "glm",
-    {
-      "name": "imgui",
-      "features": [
-        "opengl3-binding",
-        "glfw-binding"
-      ]
-    }
+    "catch2",
+    "spdlog",
+    "cmakerc"
   ]
 }

@@ -1,23 +1,38 @@
 #pragma once
 
-#include <vector>
 #include <filesystem>
+#include <map>
+#include <glad/glad.h>
+#include <glm/mat4x4.hpp>
+#include <glm/vec2.hpp>
 
-#include "Brush.h"
-#include "Tile.h"
+class App;
 
 class Canvas {
   public:
-    Canvas();
+    Canvas(const Canvas &) = delete;
+    Canvas(Canvas &&) = delete;
+    Canvas &operator=(const Canvas &) = delete;
+    Canvas &operator=(Canvas &&) = delete;
 
-    void PaintStroke(const Brush &brush);
-    void Render();
+    Canvas(const App *app);
+    ~Canvas();
 
+    void Render() const;
+    void SetPosition(glm::vec2 position, bool update = true);
+    void UpdateModel();
 
-    void Save();
-    void Open();
+    // void Load(std::filesystem::path filename);
+    // void Save(std::filesystem::path filename);
 
   private:
-    std::vector<Tile> _tiles;
-    std::vector<glm::ivec2> _tiles_pos;
+    glm::vec2 _position;
+    glm::mat4 _model;
+    glm::ivec2 _size;
+
+    GLuint _mesh;
+    GLuint _program;
+    GLuint _texture;
+
+    const App *_app;
 };

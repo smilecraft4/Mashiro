@@ -1,27 +1,31 @@
 #pragma once
 
-#include <glm/mat4x4.hpp>
 #include <glm/vec2.hpp>
+#include <glm/mat4x4.hpp>
+
+class App;
 
 class Viewport {
   public:
-    Viewport(){};
+    Viewport(const Viewport &) = delete;
+    Viewport(Viewport &&) = delete;
+    Viewport &operator=(const Viewport &) = delete;
+    Viewport &operator=(Viewport &&) = delete;
 
-    void SetPosition(glm::vec2 position = glm::vec2(0.0f, 0.0f)) noexcept {};
-    void SetRotation(float rotation = 0.0f) noexcept {};
-    void SetZoom(float zoom = 1.0f) noexcept {};
+    Viewport(const App* app);
+    ~Viewport();
 
-    void AddPosition(glm::vec2 position = glm::vec2(0.0f, 0.0f)) noexcept {};
-    void AddRotation(float rotation = 0.0f) noexcept {};
-    void AddZoom(float zoom = 1.0f) noexcept {};
+    void SetPosition(glm::vec2 position, bool update = true);
+    void SetZoom(float zoom, bool update = true);
+    void SetRotation(float rotation, bool update = true);
+
+    void UpdateView();
 
   private:
-    void UpdateViewMat() noexcept {};
-
-  private:
-    glm::vec2 _pos;
-    float _zoom; // optional
+    float _zoom;
     float _rotation;
-
-    glm::mat4 _view_mat;
+    glm::vec2 _position;
+    glm::mat4 _viewport;
+    const App *_app;
+    bool _dirty;
 };

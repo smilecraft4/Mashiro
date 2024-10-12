@@ -1,18 +1,29 @@
-#version 460 core
-layout (location = 0) in vec2 position;
-layout (location = 1) in vec2 texcoord;
+#version 420 core
 
-out vec2 v_position;
-out vec2 v_texcoord;
+struct Vertex {
+	vec2 position;
+	vec2 coord;
+};
 
-uniform mat4 MV;
+Vertex vertices[6] = {
+	{{-0.5, -0.5}, {0.0, 0.0}},     //    5----4 2
+	{{ 0.5, -0.5}, {1.0, 0.0}},     //    |   / /|
+	{{ 0.5,  0.5}, {1.0, 1.0}},     //    |  / / |							        
+	{{-0.5, -0.5}, {0.0, 0.0}},     //    | / /  |
+	{{ 0.5,  0.5}, {1.0, 1.0}},     //    |/ /   |
+	{{-0.5,  0.5}, {0.0, 1.0}},	    //    3 0----1
+};
 
-uniform vec2 screen_size;
-uniform vec2 tile_size;
+layout(binding = 0, std140) uniform Matrices {
+	mat4 viewport;
+	mat4 projection;
+};
+
+uniform mat4 model;
+
+out vec2 texcoord;
 
 void main() {
-	v_position = position;
-	v_texcoord = texcoord;
-
-	gl_Position = MV * vec4(position, 0.0, 1.0);
+	gl_Position = projection * viewport * model * vec4(vertices[gl_VertexID].position, 0.0, 1.0);
+	texcoord = vertices[gl_VertexID].coord;
 }

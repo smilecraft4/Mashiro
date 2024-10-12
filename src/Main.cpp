@@ -1,17 +1,11 @@
-#include "Mashiro.h"
+#include "App.h"
 
 #include <spdlog/spdlog.h>
+#include <cmrc/cmrc.hpp>
 
 int main(int argc, char *argv[]) {
-    try {
-        auto mashiro = std::make_unique<Mashiro>();
-        mashiro->Run();
-        
-    } catch (std::runtime_error& err) {
-        spdlog::critical("{}", err.what());
-        return -1;
-    } catch (...) {
-        return -1;
-    }
+    App app;
+    app.Run();
+
     return 0;
 }
