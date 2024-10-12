@@ -2,14 +2,14 @@
 
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
-#include <glad/glad.h>
-#include <string>
-#include <glm/mat4x4.hpp>
 #include <cmrc/cmrc.hpp>
+#include <glad/glad.h>
+#include <glm/mat4x4.hpp>
+#include <string>
 
+#include "Brush.h"
 #include "Canvas.h"
 #include "Viewport.h"
-#include "Brush.h"
 
 class App {
   public:
@@ -23,14 +23,17 @@ class App {
 
     void Run();
     void Update();
-    cmrc::embedded_filesystem _data;
 
     // TODO: move to a map or something like this if needed
     GLuint _ubo_matrices;
+    cmrc::embedded_filesystem _data;
 
   private:
     void Render();
+    void ToggleFullscreen();
 
+    static void KeyCallback(GLFWwindow *window, int key, int scancode, int action, int mods);
+    static void CursorPosCallback(GLFWwindow *window, double xpos, double ypos);
     static void ScrollCallback(GLFWwindow *window, double xoffset, double yoffset);
     static void ButtonCallback(GLFWwindow *window, int button, int action, int mods);
     static void FramebufferSize(GLFWwindow *window, int width, int height);
@@ -43,8 +46,7 @@ class App {
     glm::mat4 _projection;
 
     GLFWwindow *_window;
-
-    bool _painting;
+    GLFWmonitor *_monitor;
 
     std::unique_ptr<Canvas> _canvas;
     std::unique_ptr<Viewport> _viewport;
@@ -54,4 +56,14 @@ class App {
     // std::unique_ptr<Canvas> _canvas
     // std::unique_ptr<Tool> _tool;
 
+    struct WindowSize {
+        int xpos;
+        int ypos;
+        int width;
+        int height;
+        bool maximized;
+    } _saved_window_size;
+
+    bool _painting;
+    bool _fullscreen;
 };

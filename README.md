@@ -14,12 +14,12 @@ Mashiro is born because I rely too much on the speed of the Ctrl-Z to draw. If i
 
 ### 👑 Version 1.0.0
 
-- 🔨 Opening
-- ❌ Simple canvas
+- ✔ Opening
+- ✔ Simple canvas
 - ❌ Hand (Rotate, Pan, Zoom)
-- ❌ Brush
-  - ❌ Pen
-  - ❌ Eraser
+- ✔ Brush
+  - ✔ Pen
+  - ✔ Eraser
 - ❌ Toolbar
 - ❌ Infinite Canvas
 - ❌ Shortcut

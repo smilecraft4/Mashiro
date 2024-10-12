@@ -30,17 +30,16 @@ uniform sampler2D brush_alpha;
 layout(local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
 void main() {
 	// Convert brush_pos to texture space
-	ivec2 tile_tex_pos = ivec2(gl_GlobalInvocationID.xy);
-	ivec2 tile_tex_size = imageSize(tile_tex);
-
-	vec2 pixel_pos = tile_data.position + tile_tex_pos - tile_data.size / 2.0;
+	const ivec2 tile_tex_pos = ivec2(gl_GlobalInvocationID.xy);
+	const ivec2 tile_tex_size = imageSize(tile_tex);
+	const vec2 pixel_pos = tile_data.position + tile_tex_pos - tile_data.size / 2.0;
 
 	// TODO: change by a texture2D as an brush_alpha that can be scaled using brush_data.radius 
 	float falloff =  smoothstep(brush_data.radius, brush_data.radius * brush_data.hardness, distance(pixel_pos, brush_data.position));
-	vec4 color = brush_data.color;
 
+	// TODO: Introduce deltaTime to control the rate of the effect (1 full brush opacity every sec for example)
 	vec4 pixel = imageLoad(tile_tex, tile_tex_pos);
-	pixel.rgb = mix(pixel.rgb, color.rgb, falloff);
+	pixel.rgb = mix(pixel.rgb, brush_data.color.rgb, falloff);
 
 	// TODO: Read https://www.khronos.org/opengl/wiki/Image_Load_Store
 	imageStore(tile_tex, tile_tex_pos, pixel);
