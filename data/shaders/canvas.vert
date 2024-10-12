@@ -14,16 +14,22 @@ Vertex vertices[6] = {
 	{{-0.5,  0.5}, {0.0, 1.0}},	    //    3 0----1
 };
 
-layout(binding = 0, std140) uniform Matrices {
+layout(std140, binding = 0) uniform Matrices {
 	mat4 viewport;
 	mat4 projection;
 };
 
-uniform mat4 model;
+layout(std140, binding = 2) uniform TileData {
+	ivec2 size;
+	ivec2 position;
+	mat4 model;
+} tile_data;
+
+// uniform mat4 model;
 
 out vec2 texcoord;
 
 void main() {
-	gl_Position = projection * viewport * model * vec4(vertices[gl_VertexID].position, 0.0, 1.0);
+	gl_Position = projection * viewport * tile_data.model * vec4(vertices[gl_VertexID].position, 0.0, 1.0);
 	texcoord = vertices[gl_VertexID].coord;
 }

@@ -9,4 +9,5 @@ cmrc_add_resource_library(mashiro-data
     images/icon_48x48.png
     shaders/Canvas.vert
     shaders/Canvas.frag
+    shaders/Brush.comp
 )

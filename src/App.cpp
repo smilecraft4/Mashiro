@@ -17,6 +17,7 @@ App::App() : _data(cmrc::mashiro::get_filesystem()) {
     _width = 800;
     _height = 600;
     _title = "Mashiro";
+    _painting = false;
 
     assert(glfwInit() && "Failed to initialize GLFW");
 
@@ -65,6 +66,8 @@ App::App() : _data(cmrc::mashiro::get_filesystem()) {
     glDepthRange(0.0f, 1.0f);
 
     glfwSetFramebufferSizeCallback(_window, FramebufferSize);
+    glfwSetMouseButtonCallback(_window, ButtonCallback);
+    glfwSetScrollCallback(_window, ScrollCallback);
 
     glGenBuffers(1, &_ubo_matrices);
     glBindBuffer(GL_UNIFORM_BUFFER, _ubo_matrices);
@@ -84,6 +87,10 @@ App::App() : _data(cmrc::mashiro::get_filesystem()) {
 
     _canvas = std::make_unique<Canvas>(this);
     _viewport = std::make_unique<Viewport>(this);
+    _brush = std::make_unique<Brush>(this);
+
+    _brush->SetColor({0.0f, 255.0f, 0.0f, 255.0f});
+    _brush->SetPosition({0, 0});
 }
 
 App::~App() {
@@ -94,11 +101,31 @@ App::~App() {
 void App::Run() {
     while (!glfwWindowShouldClose(_window)) {
         glfwWaitEvents();
+        Update();
         Render();
     }
 }
 
-// TODO: enable Alpha blending
+void App::Update() {
+    if (_painting) {
+        double cursor_x, cursor_y;
+        int pos_x, pos_y, width, height;
+        glfwGetCursorPos(_window, &cursor_x, &cursor_y);
+        glfwGetWindowPos(_window, &pos_x, &pos_y);
+        glfwGetWindowSize(_window, &width, &height);
+
+        // convert cursor pos to screen_space [(pos_x, pos_y); (pos_x + width, pos_y + height)] --> [(-1,-1); (1,1)]
+        glm::vec4 brush_pos = {(cursor_x) / (float)width * 2.0f - 1.0f,
+                               ((cursor_y) / (float)height * 2.0f - 1.0f) * -1.0f, 0.0f, 0.0f};
+
+        glm::vec2 test = glm::inverse(_viewport->_viewport) * glm::inverse(_projection) * brush_pos;
+
+        _brush->SetPosition(test);
+        _brush->Use(_canvas.get());
+        glfwPostEmptyEvent();
+    }
+}
+
 void App::Render() {
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
@@ -108,12 +135,50 @@ void App::Render() {
     glfwSwapBuffers(_window);
 }
 
+void App::ScrollCallback(GLFWwindow *window, double xoffset, double yoffset) {
+    App *app = (App *)glfwGetWindowUserPointer(window);
+    assert(app && "Failed to retrieve window");
+
+    int state = glfwGetKey(window, GLFW_KEY_RIGHT_CONTROL) | glfwGetKey(window, GLFW_KEY_LEFT_CONTROL);
+    if (state == GLFW_PRESS) {
+        const auto hardness = app->_brush->GetHardness() + (float)yoffset * 0.01f;
+        app->_brush->SetHardness(std::max(0.0f, std::min(1.0f, hardness)));
+    } else {
+        const auto radius = app->_brush->GetRadius() + (float)yoffset / 0.5f;
+        app->_brush->SetRadius(std::max(0.0f, std::min(50.0f, radius)));
+    }
+}
+
+void App::ButtonCallback(GLFWwindow *window, int button, int action, int mods) {
+    App *app = (App *)glfwGetWindowUserPointer(window);
+    assert(app && "Failed to retrieve window");
+
+    if (button == GLFW_MOUSE_BUTTON_LEFT) {
+        if (action == GLFW_PRESS && !app->_painting) {
+            app->_brush->SetColor({0.0f, 0.0f, 0.0f, 255.0f});
+            app->_painting = true;
+        } else if (action == GLFW_RELEASE) {
+            app->_painting = false;
+        }
+    }
+
+    if (button == GLFW_MOUSE_BUTTON_RIGHT ) {
+        if (action == GLFW_PRESS && !app->_painting) {
+            app->_brush->SetColor({255.0f, 255.0f, 255.0f, 127.0f});
+            app->_painting = true;
+        } else if (action == GLFW_RELEASE) {
+            app->_painting = false;
+        }
+    }
+}
+
 void App::FramebufferSize(GLFWwindow *window, int width, int height) {
     App *app = (App *)glfwGetWindowUserPointer(window);
     assert(app && "Failed to retrieve window");
 
     app->_width = width;
     app->_height = height;
+    // TODO: BUG: when width or height are not whole number the canvas becomes blurry
     app->_projection =
         glm::orthoLH(-app->_width / 2.0f, app->_width / 2.0f, -app->_height / 2.0f, app->_height / 2.0f, 0.0f, 1.0f);
 

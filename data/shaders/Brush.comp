@@ -1,0 +1,47 @@
+﻿#version 430 core
+
+layout(std140, binding = 0) uniform Matrices {
+	mat4 viewport;
+	mat4 projection;
+};
+
+// TODO: use a buffer with multiple inputs rather than a single one
+layout(std140, binding = 1) uniform BrushData {	
+	vec2 position;
+	vec2 tilt;
+	vec4 color;
+	float pressure;
+	float radius;
+	float hardness;
+} brush_data;
+
+layout(std140, binding = 2) uniform TileData {
+	ivec2 size;
+	ivec2 position;
+	mat4 model;
+} tile_data;
+
+// TODO: use a textureArray and edit the texture that will be affected
+layout(binding = 0, rgba8) uniform image2D tile_tex;
+
+uniform vec4 color;
+uniform sampler2D brush_alpha;
+
+layout(local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
+void main() {
+	// Convert brush_pos to texture space
+	ivec2 tile_tex_pos = ivec2(gl_GlobalInvocationID.xy);
+	ivec2 tile_tex_size = imageSize(tile_tex);
+
+	vec2 pixel_pos = tile_data.position + tile_tex_pos - tile_data.size / 2.0;
+
+	// TODO: change by a texture2D as an brush_alpha that can be scaled using brush_data.radius 
+	float falloff =  smoothstep(brush_data.radius, brush_data.radius * brush_data.hardness, distance(pixel_pos, brush_data.position));
+	vec4 color = brush_data.color;
+
+	vec4 pixel = imageLoad(tile_tex, tile_tex_pos);
+	pixel.rgb = mix(pixel.rgb, color.rgb, falloff);
+
+	// TODO: Read https://www.khronos.org/opengl/wiki/Image_Load_Store
+	imageStore(tile_tex, tile_tex_pos, pixel);
+}

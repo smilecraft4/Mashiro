@@ -20,12 +20,12 @@ class Viewport {
     void SetRotation(float rotation, bool update = true);
 
     void UpdateView();
+    glm::mat4 _viewport;
 
   private:
     float _zoom;
     float _rotation;
     glm::vec2 _position;
-    glm::mat4 _viewport;
     const App *_app;
     bool _dirty;
 };

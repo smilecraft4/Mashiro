@@ -3,8 +3,10 @@
 #include <glm/gtc/type_ptr.hpp>
 #include <spdlog/spdlog.h>
 
-Canvas::Canvas(const App *app) : _app(app), _size(512, 512), _position(0.0f, 0.0f) {
-    SetPosition({0.0f, 0.0f}, false);
+Canvas::Canvas(const App *app) : _app(app), _tile_data() {
+    _tile_data._size = {512, 512};
+    _tile_data._position = {0, 0};
+    UpdateModel();
 
     // Compile shader
     _program = glCreateProgram();
@@ -43,9 +45,15 @@ Canvas::Canvas(const App *app) : _app(app), _size(512, 512), _position(0.0f, 0.0
     glDeleteShader(vertex_shader);
     glDeleteShader(fragment_shader);
 
-    // Bind uniform
-    GLuint matrices_index = glGetUniformBlockIndex(_program, "Matrices");
-    glUniformBlockBinding(_program, matrices_index, 0);
+    // Create TileData uniform
+    glGenBuffers(1, &_ubo_tile_data);
+    glBindBuffer(GL_UNIFORM_BUFFER, _ubo_tile_data);
+    const GLchar ubo_matrices_name[] = "Canvas TileData Uniform Buffer";
+    glObjectLabel(GL_BUFFER, _ubo_tile_data, sizeof(ubo_matrices_name), ubo_matrices_name);
+    glBufferData(GL_UNIFORM_BUFFER, sizeof(TileData), &_tile_data, GL_STATIC_DRAW);
+    glBindBuffer(GL_UNIFORM_BUFFER, 0);
+
+    glBindBufferRange(GL_UNIFORM_BUFFER, 2, _ubo_tile_data, 0, sizeof(TileData));
 
     // Create texture
     glGenTextures(1, &_texture);
@@ -57,9 +65,10 @@ Canvas::Canvas(const App *app) : _app(app), _size(512, 512), _position(0.0f, 0.0
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-    const std::vector<std::uint32_t> pixels(_size.x * _size.y, 0xFFFFFFFF);
-    glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA32F, _size.x, _size.y);
-    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, _size.x, _size.y, GL_RGBA, GL_UNSIGNED_BYTE, pixels.data());
+    const std::vector<std::uint32_t> pixels(_tile_data._size.x * _tile_data._size.y, 0xFFFFFFFF);
+    glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA8, _tile_data._size.x, _tile_data._size.y);
+    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, _tile_data._size.x, _tile_data._size.y, GL_RGBA, GL_UNSIGNED_BYTE,
+                    pixels.data());
     glGenerateMipmap(GL_TEXTURE_2D);
 
     // Create vertex array
@@ -69,7 +78,6 @@ Canvas::Canvas(const App *app) : _app(app), _size(512, 512), _position(0.0f, 0.0
     const GLchar mesh_name[] = "Canvas VertexArray";
     glObjectLabel(GL_VERTEX_ARRAY, _mesh, sizeof(mesh_name), mesh_name);
 
-    UpdateModel();
 }
 
 Canvas::~Canvas() {
@@ -82,19 +90,26 @@ void Canvas::Render() const {
     glUseProgram(_program);
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, _texture);
-    glUniformMatrix4fv(glGetUniformLocation(_program, "model"), 1, GL_FALSE, glm::value_ptr(_model));
     glBindVertexArray(_mesh);
     glDrawArrays(GL_TRIANGLES, 0, 6);
 }
 
 void Canvas::UpdateModel() {
-    _model = glm::mat4(1.0f);
-    _model = glm::scale(_model, glm::vec3(_size, 1.0f));
-    _model = glm::translate(_model, glm::vec3(_position, 0.0f));
+    _tile_data._model = glm::mat4(1.0f);
+    _tile_data._model = glm::scale(_tile_data._model, glm::vec3(_tile_data._size, 1.0f));
+    _tile_data._model = glm::translate(_tile_data._model, glm::vec3(_tile_data._position, 0.0f));
+}
+
+glm::ivec2 Canvas::Size() const {
+    return _tile_data._size;
+}
+
+GLuint Canvas::TextureID() const {
+    return _texture;
 }
 
 void Canvas::SetPosition(glm::vec2 position, bool update) {
-    _position = position;
+    _tile_data._position = position;
     if (update) {
         UpdateModel();
     }
