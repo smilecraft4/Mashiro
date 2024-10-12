@@ -1,8 +1,11 @@
 {
   "dependencies": [
+    "glfw3",
+    "glad",
+    "glm",
     "catch2",
     "spdlog",
-    "cli11",
-    "wxwidgets"
+    "cmakerc",
+    "stb"
   ]
 }
