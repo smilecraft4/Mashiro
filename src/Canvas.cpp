@@ -4,7 +4,7 @@
 #include <spdlog/spdlog.h>
 
 Canvas::Canvas(const App *app) : _app(app), _tile_data() {
-    _tile_data._size = {512, 512};
+    _tile_data._size = {1024, 1024};
     _tile_data._position = {0, 0};
     UpdateModel();
 
@@ -14,14 +14,14 @@ Canvas::Canvas(const App *app) : _app(app), _tile_data() {
     glObjectLabel(GL_PROGRAM, _program, sizeof(program_name), program_name);
 
     GLuint vertex_shader = glCreateShader(GL_VERTEX_SHADER);
-    const auto canvas_vert_file = _app->_data.open("shaders/Canvas.vert");
+    const auto canvas_vert_file = _app->_data.open("shaders/canvas.vert");
     std::string_view canvas_vert(canvas_vert_file.begin(), canvas_vert_file.end());
     const char *canvas_vert_source = canvas_vert.data();
     glShaderSource(vertex_shader, 1, &canvas_vert_source, nullptr);
     glCompileShader(vertex_shader);
 
     GLuint fragment_shader = glCreateShader(GL_FRAGMENT_SHADER);
-    const auto canvas_frag_file = _app->_data.open("shaders/Canvas.frag");
+    const auto canvas_frag_file = _app->_data.open("shaders/canvas.frag");
     std::string_view canvas_frag(canvas_frag_file.begin(), canvas_frag_file.end());
     const char *canvas_frag_source = canvas_frag.data();
     glShaderSource(fragment_shader, 1, &canvas_frag_source, nullptr);

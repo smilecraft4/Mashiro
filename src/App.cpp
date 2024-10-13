@@ -19,6 +19,10 @@ App::App() : _data(cmrc::mashiro::get_filesystem()) {
     _title = "Mashiro";
     _painting = false;
     _fullscreen = false;
+    _zooming = false;
+    _rotating = false;
+    _panning = false;
+    _using_hand = false;
 
     assert(glfwInit() && "Failed to initialize GLFW");
 
@@ -129,8 +133,61 @@ void App::KeyCallback(GLFWwindow *window, int key, int scancode, int action, int
     App *app = (App *)glfwGetWindowUserPointer(window);
     assert(app && "Failed to retrieve window");
 
+    // TODO: Add a shortcut handler
     if (key == GLFW_KEY_F11 && action == GLFW_PRESS) {
         app->ToggleFullscreen();
+    }
+
+    // Hand Tool (Pan, Zoom, Rotate)
+    if (action == GLFW_PRESS) {
+        switch (key) {
+        case GLFW_KEY_SPACE:
+            app->_panning = true;
+            break;
+        case GLFW_KEY_RIGHT_SHIFT:
+        case GLFW_KEY_LEFT_SHIFT:
+            app->_rotating = true;
+            break;
+        case GLFW_KEY_RIGHT_CONTROL:
+        case GLFW_KEY_LEFT_CONTROL:
+            app->_zooming = true;
+            break;
+        case GLFW_KEY_S:
+            if (mods & GLFW_MOD_ALT) {
+                app->_viewport->SetZoom(1.0f);
+            }
+            break;
+        case GLFW_KEY_R:
+            if (mods & GLFW_MOD_ALT) {
+                app->_viewport->SetRotation(0.0f);
+            }
+            break;
+        case GLFW_KEY_G:
+            if (mods & GLFW_MOD_ALT) {
+                app->_viewport->SetPosition({0.0f, 0.0f});
+            }
+            break;
+        default:
+            break;
+        }
+    }
+
+    if (action == GLFW_RELEASE) {
+        switch (key) {
+        case GLFW_KEY_SPACE:
+            app->_panning = false;
+            break;
+        case GLFW_KEY_RIGHT_SHIFT:
+        case GLFW_KEY_LEFT_SHIFT:
+            app->_rotating = false;
+            break;
+        case GLFW_KEY_RIGHT_CONTROL:
+        case GLFW_KEY_LEFT_CONTROL:
+            app->_zooming = false;
+            break;
+        default:
+            break;
+        }
     }
 }
 
@@ -138,16 +195,44 @@ void App::CursorPosCallback(GLFWwindow *window, double xpos, double ypos) {
     App *app = (App *)glfwGetWindowUserPointer(window);
     assert(app && "Failed to retrieve window");
 
+    glm::dvec2 delta = (glm::dvec2(xpos, ypos) - app->_cursor_previous) * glm::dvec2(1.0, -1.0);
+
+    if (app->_panning) {
+        if (app->_rotating) {
+            auto rot = app->_viewport->GetRotation();
+            rot += (delta.x + delta.y) / 10.0f;
+
+            { // Wrap angle [0;360[
+                rot = fmod(rot, 360);
+                if (rot < 0)
+                    rot += 360;
+            }
+
+            app->_viewport->SetRotation(rot);
+        } else if (app->_zooming) {
+            auto zoom = app->_viewport->GetZoom();
+            zoom = std::max(0.05f, std::min(1000.0f, zoom + (float)(delta.x + delta.y) / 666.0f));
+            app->_viewport->SetZoom(zoom);
+        } else {
+            // TODO: add drifting at the end, like launching a piece of paper and catching it
+            auto zoom = app->_viewport->GetZoom();
+            auto pos = app->_viewport->GetPosition();
+            pos += glm::vec2(delta);
+            app->_viewport->SetPosition(pos);
+        }
+    }
+
     if (app->_painting) {
         // convert cursor pos to screen_space [(pos_x, pos_y); (pos_x + width, pos_y + height)] --> [(-1,-1); (1,1)]
         glm::vec4 brush_pos = {xpos / (float)app->_width * 2.0f - 1.0f,
                                (ypos / (float)app->_height * 2.0f - 1.0f) * -1.0f, 0.0f, 0.0f};
-
-        glm::vec2 test = glm::inverse(app->_viewport->_viewport) * glm::inverse(app->_projection) * brush_pos;
-
-        app->_brush->SetPosition(test);
+        auto temp = glm::inverse(app->_viewport->_viewport) * glm::vec4(app->_viewport->GetPosition(), 0.0f, 0.0f);
+        brush_pos = (glm::inverse(app->_viewport->_viewport) * glm::inverse(app->_projection) * brush_pos) - temp;
+        app->_brush->SetPosition(brush_pos);
         app->_brush->Use(app->_canvas.get());
     }
+
+    app->_cursor_previous = {xpos, ypos};
 }
 
 void App::ScrollCallback(GLFWwindow *window, double xoffset, double yoffset) {
@@ -169,7 +254,9 @@ void App::ButtonCallback(GLFWwindow *window, int button, int action, int mods) {
     assert(app && "Failed to retrieve window");
 
     if (button == GLFW_MOUSE_BUTTON_LEFT) {
-        if (action == GLFW_PRESS && !app->_painting) {
+        if (app->_panning) {
+            app->_using_hand = (action != GLFW_RELEASE);
+        } else if (action == GLFW_PRESS && !app->_painting) {
             app->_brush->SetColor({0.0f, 0.0f, 0.0f, 255.0f});
             app->_painting = true;
 
@@ -177,8 +264,9 @@ void App::ButtonCallback(GLFWwindow *window, int button, int action, int mods) {
             glfwGetCursorPos(app->_window, &xpos, &ypos);
             glm::vec4 brush_pos = {xpos / (float)app->_width * 2.0f - 1.0f,
                                    (ypos / (float)app->_height * 2.0f - 1.0f) * -1.0f, 0.0f, 0.0f};
-            glm::vec2 test = glm::inverse(app->_viewport->_viewport) * glm::inverse(app->_projection) * brush_pos;
-            app->_brush->SetPosition(test);
+            auto temp = glm::inverse(app->_viewport->_viewport) * glm::vec4(app->_viewport->GetPosition(), 0.0f, 0.0f);
+            brush_pos = (glm::inverse(app->_viewport->_viewport) * glm::inverse(app->_projection) * brush_pos) - temp;
+            app->_brush->SetPosition(brush_pos);
 
             app->_brush->Use(app->_canvas.get());
         } else if (action == GLFW_RELEASE) {
@@ -195,8 +283,9 @@ void App::ButtonCallback(GLFWwindow *window, int button, int action, int mods) {
             glfwGetCursorPos(app->_window, &xpos, &ypos);
             glm::vec4 brush_pos = {xpos / (float)app->_width * 2.0f - 1.0f,
                                    (ypos / (float)app->_height * 2.0f - 1.0f) * -1.0f, 0.0f, 0.0f};
-            glm::vec2 test = glm::inverse(app->_viewport->_viewport) * glm::inverse(app->_projection) * brush_pos;
-            app->_brush->SetPosition(test);
+            auto temp = glm::inverse(app->_viewport->_viewport) * glm::vec4(app->_viewport->GetPosition(), 0.0f, 0.0f);
+            brush_pos = (glm::inverse(app->_viewport->_viewport) * glm::inverse(app->_projection) * brush_pos) - temp;
+            app->_brush->SetPosition(brush_pos);
 
             app->_brush->Use(app->_canvas.get());
         } else if (action == GLFW_RELEASE) {

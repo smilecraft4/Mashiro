@@ -6,12 +6,29 @@
 
 Viewport::Viewport(const App *app) : _app(app) {
     SetPosition({0.0f, 0.0f}, false);
-    SetZoom(0.0f, false);
+    SetZoom(1.0f, false);
     SetRotation(0.0f, false);
     UpdateView();
 }
 
 Viewport::~Viewport() {
+}
+
+void Viewport::UpdateView() {
+    _viewport = glm::mat4(1.0f);
+    _viewport = glm::translate(_viewport, glm::vec3(_position, 0.0f));
+    _viewport = glm::scale(_viewport, glm::vec3(_zoom));
+    _viewport = glm::rotate(_viewport, glm::radians(_rotation), glm::vec3(0.0, 0.0f, 1.0f));
+
+    glBindBuffer(GL_UNIFORM_BUFFER, _app->_ubo_matrices);
+    glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(glm::mat4), glm::value_ptr(_viewport));
+    glBindBuffer(GL_UNIFORM_BUFFER, 0);
+
+    CalculateAABB();
+}
+
+void Viewport::CalculateAABB() {
+    // get's the largest AABB encomposing the viewport 
 }
 
 void Viewport::SetPosition(glm::vec2 position, bool update) {
@@ -35,11 +52,18 @@ void Viewport::SetRotation(float rotation, bool update) {
     }
 }
 
-void Viewport::UpdateView() {
-    _viewport = glm::mat4(1.0f);
-    _viewport = glm::translate(_viewport, glm::vec3(_position, 0.0f));
+glm::vec2 Viewport::GetPosition() const {
+    return _position;
+}
 
-    glBindBuffer(GL_UNIFORM_BUFFER, _app->_ubo_matrices);
-    glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(glm::mat4), glm::value_ptr(_viewport));
-    glBindBuffer(GL_UNIFORM_BUFFER, 0);
+float Viewport::GetZoom() const {
+    return _zoom;
+}
+
+float Viewport::GetRotation() const {
+    return _rotation;
+}
+
+glm::ivec4 Viewport::GetAABB() const {
+    return _AABB;
 }

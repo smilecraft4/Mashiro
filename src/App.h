@@ -48,6 +48,8 @@ class App {
     GLFWwindow *_window;
     GLFWmonitor *_monitor;
 
+    glm::dvec2 _cursor_previous;
+
     std::unique_ptr<Canvas> _canvas;
     std::unique_ptr<Viewport> _viewport;
     std::unique_ptr<Brush> _brush;
@@ -66,4 +68,9 @@ class App {
 
     bool _painting;
     bool _fullscreen;
+
+    bool _zooming;
+    bool _rotating;
+    bool _panning;
+    bool _using_hand;
 };
