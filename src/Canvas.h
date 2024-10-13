@@ -26,32 +26,39 @@ class Canvas {
     glm::ivec2 Size() const;
     GLuint TextureID() const;
 
-    // void LoadTile(glm::ivec2 position);
-    // void UnloadTile(glm::ivec2 position);
-    // void SaveTile(glm::ivec2 position);
-    // void ClearTile(glm::ivec2 position);
+    glm::ivec2 GetTileUnderCursor(glm::vec2 cursor_pos);
+
+    void UpdateCursorPos(glm::vec2 cursor_pos);
+
+    size_t CreateTile(glm::ivec2 pos, glm::ivec2 size);
+
+    void LoadTile(size_t index);
+    void UnloadTile(size_t index);
+    void SaveTile(size_t index);
+    void ClearTile(size_t index);
 
     // void Load(std::filesystem::path filename);
     // void Save(std::filesystem::path filename);
-
-  private:
     struct TileData {
         glm::ivec2 _size;
         glm::ivec2 _position;
         glm::mat4 _model;
     } _tile_data;
+    GLuint _ubo_tile_data;
 
-    std::map<glm::ivec2, size_t> _tiles_elements;
+    std::map<int, size_t> _tiles_elements;
     std::vector<bool> _tiles_loaded;
-    std::vector<glm::ivec4> _tiles_AABB;
     std::vector<TileData> _tiles_datas;
     std::vector<GLuint> _tiles_textures;
+
+  private:
+
 
     GLuint _mesh;
     GLuint _program;
     GLuint _texture;
 
-    GLuint _ubo_tile_data;
+    std::vector<std::uint32_t> _pixels;
 
     const App *_app;
 };

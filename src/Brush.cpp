@@ -76,9 +76,22 @@ void Brush::Use(const Canvas *canvas) {
         return;
 
     glUseProgram(_program);
-    glBindImageTexture(0, canvas->TextureID(), 0, GL_FALSE, 0, GL_READ_WRITE, GL_RGBA8);
-    glDispatchCompute(canvas->Size().x / _program_work_group_size.x, canvas->Size().y / _program_work_group_size.y, 1);
-    glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+    for (size_t i = 0; i < _app->_canvas->_tiles_loaded.size(); i++) {
+        if (_app->_canvas->_tiles_loaded[i]) {
+            glBindBuffer(GL_UNIFORM_BUFFER, _app->_canvas->_ubo_tile_data);
+            glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(Canvas::TileData), &_app->_canvas->_tiles_datas[i]);
+            glBindBuffer(GL_UNIFORM_BUFFER, 0);
+
+            auto &d = _app->_canvas->_tiles_datas[i];
+            glBindImageTexture(0, _app->_canvas->_tiles_textures[i], 0, GL_FALSE, 0, GL_READ_WRITE, GL_RGBA8);
+            glDispatchCompute(d._size.x / _program_work_group_size.x, d._size.y / _program_work_group_size.y, 1);
+            glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+
+            glBindTexture(GL_TEXTURE_2D, _app->_canvas->_tiles_textures[i]);
+            glGenerateMipmap(GL_TEXTURE_2D);
+            glBindTexture(GL_TEXTURE_2D, 0);
+        }
+    }
     glUseProgram(0);
 }
 

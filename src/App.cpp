@@ -121,7 +121,7 @@ void App::Update() {
 }
 
 void App::Render() {
-    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+    glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
 
     _canvas->Render();
@@ -195,6 +195,11 @@ void App::CursorPosCallback(GLFWwindow *window, double xpos, double ypos) {
     App *app = (App *)glfwGetWindowUserPointer(window);
     assert(app && "Failed to retrieve window");
 
+    glm::vec4 brush_pos = {xpos / (float)app->_width * 2.0f - 1.0f, (ypos / (float)app->_height * 2.0f - 1.0f) * -1.0f,
+                           0.0f, 0.0f};
+    auto temp = glm::inverse(app->_viewport->_viewport) * glm::vec4(app->_viewport->GetPosition(), 0.0f, 0.0f);
+    brush_pos = (glm::inverse(app->_viewport->_viewport) * glm::inverse(app->_projection) * brush_pos) - temp;
+
     glm::dvec2 delta = (glm::dvec2(xpos, ypos) - app->_cursor_previous) * glm::dvec2(1.0, -1.0);
 
     if (app->_panning) {
@@ -223,11 +228,9 @@ void App::CursorPosCallback(GLFWwindow *window, double xpos, double ypos) {
     }
 
     if (app->_painting) {
+
+        app->_canvas->UpdateCursorPos({brush_pos.x, brush_pos.y});
         // convert cursor pos to screen_space [(pos_x, pos_y); (pos_x + width, pos_y + height)] --> [(-1,-1); (1,1)]
-        glm::vec4 brush_pos = {xpos / (float)app->_width * 2.0f - 1.0f,
-                               (ypos / (float)app->_height * 2.0f - 1.0f) * -1.0f, 0.0f, 0.0f};
-        auto temp = glm::inverse(app->_viewport->_viewport) * glm::vec4(app->_viewport->GetPosition(), 0.0f, 0.0f);
-        brush_pos = (glm::inverse(app->_viewport->_viewport) * glm::inverse(app->_projection) * brush_pos) - temp;
         app->_brush->SetPosition(brush_pos);
         app->_brush->Use(app->_canvas.get());
     }

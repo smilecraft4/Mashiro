@@ -27,6 +27,7 @@ class App {
     // TODO: move to a map or something like this if needed
     GLuint _ubo_matrices;
     cmrc::embedded_filesystem _data;
+    std::unique_ptr<Canvas> _canvas;
 
   private:
     void Render();
@@ -50,7 +51,6 @@ class App {
 
     glm::dvec2 _cursor_previous;
 
-    std::unique_ptr<Canvas> _canvas;
     std::unique_ptr<Viewport> _viewport;
     std::unique_ptr<Brush> _brush;
     // std::unique_ptr<Preferences> _preferences;
