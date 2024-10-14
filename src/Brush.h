@@ -9,6 +9,7 @@
 
 class Canvas;
 class App;
+class Tile;
 
 class Brush {
   public:
@@ -28,7 +29,7 @@ class Brush {
     float GetRadius() const;
     float GetHardness() const;
 
-    void Use(const Canvas *canvas);
+    void Use(const Tile *tile) const;
 
     // void Undo();
     // void Redo();

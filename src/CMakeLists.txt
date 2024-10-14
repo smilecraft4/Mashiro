@@ -17,7 +17,10 @@ target_sources(mashiro PRIVATE
     "App.h" "App.cpp"
     "Canvas.h" "Canvas.cpp" 
     "Viewport.h" "Viewport.cpp"
- "Brush.h" "Brush.cpp" "Tile.h")
+    "Brush.h" "Brush.cpp" 
+    "Tile.h" "Tile.cpp" 
+    "Stylus.h" "Stylus.cpp"
+)
 
 # Install
 target_link_libraries(mashiro PRIVATE 

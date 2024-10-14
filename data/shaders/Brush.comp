@@ -5,7 +5,6 @@ layout(std140, binding = 0) uniform Matrices {
 	mat4 projection;
 };
 
-// TODO: use a buffer with multiple inputs rather than a single one
 layout(std140, binding = 1) uniform BrushData {	
 	vec2 position;
 	vec2 tilt;
@@ -28,18 +27,13 @@ layout(binding = 0, rgba8) uniform image2D tile_tex;
 
 layout(local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
 void main() {
-	// Convert brush_pos to texture space
 	const ivec2 tile_tex_pos = ivec2(gl_GlobalInvocationID.xy);
 	const ivec2 tile_tex_size = imageSize(tile_tex);
-	const vec2 pixel_pos = tile_data.position * tile_data.size + tile_tex_pos - tile_data.size / 2.0;
+	const vec2 pixel_pos = tile_data.position * tile_data.size + tile_tex_pos;
 
-	// TODO: change by a texture2D as an brush_alpha that can be scaled using brush_data.radius 
 	float falloff =  smoothstep(brush_data.radius, 0.0, distance(pixel_pos, brush_data.position));
 
-	// TODO: Introduce deltaTime to control the rate of the effect (1 full brush opacity every sec for example)
 	vec4 pixel = imageLoad(tile_tex, tile_tex_pos);
 	pixel = mix(pixel, brush_data.color, brush_data.color.a * falloff);
-
-	// TODO: Read https://www.khronos.org/opengl/wiki/Image_Load_Store
 	imageStore(tile_tex, tile_tex_pos, pixel);
 }

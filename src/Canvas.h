@@ -7,7 +7,11 @@
 #include <glm/vec4.hpp>
 #include <map>
 
+#include "Tile.h"
+#include "Brush.h"
+
 class App;
+class Tool;
 
 class Canvas {
   public:
@@ -16,49 +20,50 @@ class Canvas {
     Canvas &operator=(const Canvas &) = delete;
     Canvas &operator=(Canvas &&) = delete;
 
-    Canvas(const App *app);
+    Canvas(const App *app, glm::ivec2 tiles_size = {512, 512});
     ~Canvas();
 
-    void Render() const;
-    void SetPosition(glm::vec2 position, bool update = true);
-    void UpdateModel();
+    /**
+     * @brief Manage Loading/Unloading/Saving of the canvas tiles
+     */
+    void UpdateTilesProcessed(std::vector<glm::vec2> brush_path, float range);
 
-    glm::ivec2 Size() const;
-    GLuint TextureID() const;
+    /**
+     * @brief Process tiles (paint, fill, select, erase, etc...) the canvas using a tool
+     * @param Tool (BrushTool, FillTool, Eraser, ColorPicker, etc..)
+     */
+    void Process(const Brush *brush);
 
-    glm::ivec2 GetTileUnderCursor(glm::vec2 cursor_pos);
+    /**
+     * @brief Render canvas
+     */
+    void Render();
 
-    void UpdateCursorPos(glm::vec2 cursor_pos);
+    GLuint _tiles_ubo;
+    glm::ivec2 _tiles_size;
+  protected:
+    /**
+     * @brief Disable rendering of tiles that are not visible by the viewport, that is, the user
+     */
+    void CullTiles();
 
-    size_t CreateTile(glm::ivec2 pos, glm::ivec2 size);
+    /**
+     * @brief Render the tiles to the user
+     */
+    void RenderTiles();
 
-    void LoadTile(size_t index);
-    void UnloadTile(size_t index);
-    void SaveTile(size_t index);
-    void ClearTile(size_t index);
-
-    // void Load(std::filesystem::path filename);
-    // void Save(std::filesystem::path filename);
-    struct TileData {
-        glm::ivec2 _size;
-        glm::ivec2 _position;
-        glm::mat4 _model;
-    } _tile_data;
-    GLuint _ubo_tile_data;
-
-    std::map<int, size_t> _tiles_elements;
-    std::vector<bool> _tiles_loaded;
-    std::vector<TileData> _tiles_datas;
-    std::vector<GLuint> _tiles_textures;
+    /**
+     * @param: index index of the tile
+     * @return if the tile exists or not
+     */
+    bool GetTileIndex(glm::ivec2 position, size_t &index);
 
   private:
-
-
-    GLuint _mesh;
-    GLuint _program;
-    GLuint _texture;
-
-    std::vector<std::uint32_t> _pixels;
-
     const App *_app;
+
+    GLuint _tiles_mesh;
+    GLuint _tiles_program;
+
+    std::map<std::pair<int, int>, size_t> _tiles_index;
+    std::vector<Tile> _tiles;
 };

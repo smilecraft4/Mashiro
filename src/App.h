@@ -10,6 +10,7 @@
 #include "Brush.h"
 #include "Canvas.h"
 #include "Viewport.h"
+#include "Stylus.h"
 
 class App {
   public:
@@ -24,14 +25,17 @@ class App {
     void Run();
     void Update();
 
-    // TODO: move to a map or something like this if needed
-    GLuint _ubo_matrices;
     cmrc::embedded_filesystem _data;
-    std::unique_ptr<Canvas> _canvas;
 
-  private:
+  protected:
+    bool InitGLFW();
+    bool InitOpenGL();
+
     void Render();
     void ToggleFullscreen();
+
+    void Paint();
+    void Navigate();
 
     static void KeyCallback(GLFWwindow *window, int key, int scancode, int action, int mods);
     static void CursorPosCallback(GLFWwindow *window, double xpos, double ypos);
@@ -44,8 +48,6 @@ class App {
     int _height;
     std::string _title;
 
-    glm::mat4 _projection;
-
     GLFWwindow *_window;
     GLFWmonitor *_monitor;
 
@@ -53,6 +55,9 @@ class App {
 
     std::unique_ptr<Viewport> _viewport;
     std::unique_ptr<Brush> _brush;
+    std::unique_ptr<Stylus> _stylus;
+    std::unique_ptr<Canvas> _canvas;
+
     // std::unique_ptr<Preferences> _preferences;
     // std::unique_ptr<Renderer> _renderer;
     // std::unique_ptr<Canvas> _canvas
@@ -66,11 +71,28 @@ class App {
         bool maximized;
     } _saved_window_size;
 
-    bool _painting;
     bool _fullscreen;
 
-    bool _zooming;
-    bool _rotating;
-    bool _panning;
-    bool _using_hand;
+    struct Painting {
+        bool enabled;
+        glm::vec4 color;
+        glm::vec2 cursor_pos;
+        glm::vec2 previous_pos;
+    } _painting;
+
+    struct Navigation {
+        bool enabled;
+        float zoom_sens;
+        float rotate_sens;
+        float pan_sensitivity;
+
+        glm::vec2 delta_mouse;
+        glm::vec2 cursor_previous;
+        glm::vec2 cursor_current;
+
+        bool zooming;
+        bool rotating;
+        bool panning;
+        bool using_hand;
+    } _navigation;
 };

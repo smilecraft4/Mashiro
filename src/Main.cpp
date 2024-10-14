@@ -2,8 +2,10 @@
 
 #include <spdlog/spdlog.h>
 #include <cmrc/cmrc.hpp>
-#define STB_IMAGE_IMPLEMENTATION
+#define STB_IMAGE_IMPLEMENTATION 
 #include <stb_image.h>
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include <stb_image_write.h>
 
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
