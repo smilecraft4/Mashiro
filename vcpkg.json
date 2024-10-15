@@ -1,11 +1,13 @@
 {
   "dependencies": [
-    "glfw3",
-    "glad",
-    "glm",
     "catch2",
-    "spdlog",
     "cmakerc",
-    "stb"
+    "glad",
+    "glfw3",
+    "glm",
+    "libpng",
+    "spdlog",
+    "stb",
+    "libwebp"
   ]
 }

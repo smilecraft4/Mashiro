@@ -1,11 +1,8 @@
 #include "Tile.h"
 #include "App.h"
 #include "Canvas.h"
-#include "Tile.h"
 #include <format>
 #include <spdlog/spdlog.h>
-#include <stb_image.h>
-#include <stb_image_write.h>
 #include <string>
 
 // Tile state

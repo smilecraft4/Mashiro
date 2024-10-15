@@ -4,12 +4,6 @@ set(SPDLOG_BUILD_WARNINGS OFF)
 set(SPDLOG_TIDY OFF)
 set(CMAKE_AUTORCC ON)
 
-find_package(spdlog CONFIG REQUIRED)
-find_package(glfw3 CONFIG REQUIRED)
-find_package(glad CONFIG REQUIRED)
-find_package(glm CONFIG REQUIRED) 
-find_package(Stb REQUIRED)
-
 
 add_executable(mashiro)
 target_sources(mashiro PRIVATE 
@@ -20,6 +14,7 @@ target_sources(mashiro PRIVATE
     "Brush.h" "Brush.cpp" 
     "Tile.h" "Tile.cpp" 
     "Stylus.h" "Stylus.cpp"
+    "File.cpp" "File.h"
 )
 
 # Install
@@ -29,6 +24,7 @@ target_link_libraries(mashiro PRIVATE
     glad::glad 
     glm::glm
     mashiro::data
+    PNG::PNG
 )
 
 target_include_directories(mashiro PRIVATE ${Stb_INCLUDE_DIR})
