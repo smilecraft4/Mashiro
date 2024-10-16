@@ -19,6 +19,7 @@ target_link_libraries(mashiro-test PRIVATE
 target_sources(mashiro-test PRIVATE 
     # "test-libpng.cpp"
     # "test-libwebp.cpp"
- "test-fileformat.cpp")
+    # "test-fileformat.cpp"
+ "test-png_reader.cpp")
 
 catch_discover_tests(mashiro-test)

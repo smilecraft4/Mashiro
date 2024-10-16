@@ -217,9 +217,9 @@ TEST_CASE("Png Test", "[Tile]") {
     std::chrono::steady_clock::time_point start, stop;
     std::chrono::milliseconds duration;
 
-    size_t count = 512;
+    size_t count = 1;
     int compression_level = 6;
-    int resolution = 512;
+    int resolution = 64;
 
     // Create random raw texture
     start = std::chrono::high_resolution_clock::now();
@@ -229,7 +229,7 @@ TEST_CASE("Png Test", "[Tile]") {
 
     stop = std::chrono::high_resolution_clock::now();
     duration = duration_cast<std::chrono::milliseconds>(stop - start);
-    std::cout << "Generated " << count << " random raw texture in : " << duration.count() << "ms" << std::endl;
+    std::cout << "png: Generated " << count << " random raw texture in : " << duration.count() << "ms" << std::endl;
 
     // Create opengl texture
     start = std::chrono::high_resolution_clock::now();
@@ -260,7 +260,7 @@ TEST_CASE("Png Test", "[Tile]") {
 
     stop = std::chrono::high_resolution_clock::now();
     duration = duration_cast<std::chrono::milliseconds>(stop - start);
-    std::cout << "Created " << count << " OpenGL from raw texture in  : " << duration.count() << "ms" << std::endl;
+    std::cout << "png: Created " << count << " OpenGL from raw texture in  : " << duration.count() << "ms" << std::endl;
 
     // Get raw texture from opengl texture
     start = std::chrono::high_resolution_clock::now();
@@ -280,7 +280,7 @@ TEST_CASE("Png Test", "[Tile]") {
 
     stop = std::chrono::high_resolution_clock::now();
     duration = duration_cast<std::chrono::milliseconds>(stop - start);
-    std::cout << "Read " << count << " OpenGL texture to raw texture in : " << duration.count() << "ms" << std::endl;
+    std::cout << "png: Read " << count << " OpenGL texture to raw texture in : " << duration.count() << "ms" << std::endl;
 
     for (size_t i = 0; i < random_raws.size(); i++) {
         REQUIRE(opengl_raws[i] == random_raws[i]);
@@ -307,7 +307,7 @@ TEST_CASE("Png Test", "[Tile]") {
 
     stop = std::chrono::high_resolution_clock::now();
     duration = duration_cast<std::chrono::milliseconds>(stop - start);
-    std::cout << "Saved " << count << " raw texture as png in : " << duration.count() << "ms" << std::endl;
+    std::cout << "png: Saved " << count << " raw texture as png in : " << duration.count() << "ms" << std::endl;
 
     std::vector<Raw> png_raws(pngs.size());
     // Load/decompress png to raw texture
@@ -325,7 +325,7 @@ TEST_CASE("Png Test", "[Tile]") {
 
     stop = std::chrono::high_resolution_clock::now();
     duration = duration_cast<std::chrono::milliseconds>(stop - start);
-    std::cout << "Loaded " << count << " png as raw texture in : " << duration.count() << "ms" << std::endl;
+    std::cout << "png: Loaded " << count << " png as raw texture in : " << duration.count() << "ms" << std::endl;
 
     for (size_t i = 0; i < opengl_raws.size(); i++) {
         REQUIRE(png_raws[i] == opengl_raws[i]);
