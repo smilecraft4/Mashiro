@@ -1,15 +1,18 @@
 #define CATCH_CONFIG_MAIN
 #define CATCH_CONFIG_ENABLE_BENCHMARKING
 #include <catch.hpp>
+#include <future>
 #include <iostream>
 
 #include "../src/File.h"
 
 constexpr int tile_resolution = 256;
-constexpr int tile_compression = 2;
-constexpr size_t tile_count_x = 56;
-constexpr size_t tile_count_y = 45;
+constexpr int tile_compression = 5;
+constexpr size_t tile_count_x = 10;
+constexpr size_t tile_count_y = 10;
 const std::string file_name = "./Save/Test.msh";
+
+constexpr bool multithreading = true;
 
 struct Texture {
     int _width;
@@ -68,16 +71,16 @@ TEST_CASE("Write a raw texture to memory as a png", "[Mashiro][I/O]") {
         if (i_y != 0) {
             y += tile_count_y + rand() % 20;
             x = -50 + rand() % 25;
-            //y = i_y;
+            // y = i_y;
         }
 
-        //x = 0;
+        // x = 0;
         min_x = std::min(x, min_x);
 
         for (size_t i_x = 0; i_x < tile_count_x; i_x++) {
             if (i_x != 0) {
                 x += tile_count_x + rand() % 20;
-                //x = i_x;
+                // x = i_x;
             }
 
             tiles_write.push_back({x, y, Texture(tile_resolution, tile_resolution)});
@@ -94,14 +97,30 @@ TEST_CASE("Write a raw texture to memory as a png", "[Mashiro][I/O]") {
 
         File file_write(tile_resolution);
         file_write.SetFilename(file_name);
-        for (auto &tile : tiles_write) {
-            file_write.SaveTexture(tile.x, tile.y, tile.raw._pixels);
+
+        if (multithreading) {
+
+            std::vector<std::future<void>> texture_saves;
+
+            for (auto &tile : tiles_write) {
+                texture_saves.emplace_back(std::async(std::launch::async, [&file_write, &tile]() {
+                    file_write.SaveTexture(tile.x, tile.y, tile.raw._pixels);
+                }));
+            }
+
+            for (auto &save : texture_saves) {
+                save.wait();
+            }
+        } else {
+            for (auto &tile : tiles_write) {
+                file_write.SaveTexture(tile.x, tile.y, tile.raw._pixels);
+            }
         }
 
         stop = std::chrono::high_resolution_clock::now();
         duration = duration_cast<std::chrono::milliseconds>(stop - start);
         std::cout << "Saved " << tiles_write.size() << " textrues of " << tile_resolution
-                  << " in  : " << duration.count() << "ms " << std::endl;
+                  << " in  : " << duration.count() << "ms. (Multithreading: " << multithreading << ")" << std::endl;
 
         start = std::chrono::high_resolution_clock::now();
 
@@ -124,18 +143,38 @@ TEST_CASE("Write a raw texture to memory as a png", "[Mashiro][I/O]") {
 
         start = std::chrono::high_resolution_clock::now();
 
-        for (int ix = min_x; ix <= max_x; ix++) {
-            for (int iy = min_y; iy <= max_y; iy++) {
-                auto raw = file_read.GetTexture(ix, iy);
-                if (raw.has_value()) {
-                    tiles_read.push_back(Tile(ix, iy, Texture(tile_resolution, tile_resolution, raw.value())));
+        if (multithreading) {
+            std::vector<std::future<void>> texture_saves;
+
+            for (int ix = min_x; ix <= max_x; ix++) {
+                for (int iy = min_y; iy <= max_y; iy++) {
+                    texture_saves.emplace_back(std::async(std::launch::async, [&tiles_read, &file_read, ix, iy]() {
+                        auto raw = file_read.GetTexture(ix, iy);
+                        if (raw.has_value()) {
+                            tiles_read.push_back(Tile(ix, iy, Texture(tile_resolution, tile_resolution, raw.value())));
+                        }
+                    }));
+                }
+            }
+
+            for (auto &save : texture_saves) {
+                save.wait();
+            }
+        } else {
+            for (int ix = min_x; ix <= max_x; ix++) {
+                for (int iy = min_y; iy <= max_y; iy++) {
+                    auto raw = file_read.GetTexture(ix, iy);
+                    if (raw.has_value()) {
+                        tiles_read.push_back(Tile(ix, iy, Texture(tile_resolution, tile_resolution, raw.value())));
+                    }
                 }
             }
         }
 
         stop = std::chrono::high_resolution_clock::now();
         duration = duration_cast<std::chrono::milliseconds>(stop - start);
-        std::cout << "Loaded " << tiles_read.size() << "textures in : " << duration.count() << "ms" << std::endl;
+        std::cout << "Loaded " << tiles_read.size() << " textures in : " << duration.count()
+                  << "ms. (Multithreading: " << multithreading << ")" << std::endl;
     }
 
     REQUIRE(tiles_read.size() == tiles_write.size());
