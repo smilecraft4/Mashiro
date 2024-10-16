@@ -20,6 +20,9 @@ target_sources(mashiro-test PRIVATE
     # "test-libpng.cpp"
     # "test-libwebp.cpp"
     # "test-fileformat.cpp"
- "test-png_reader.cpp")
+ # "test-png_reader.cpp"
+ "test-mashiro-file.cpp"
+ "../src/File.h" "../src/File.cpp"
+)
 
-catch_discover_tests(mashiro-test)
+catch_discover_tests(mashiro-test) 

@@ -4,6 +4,9 @@
 #include <glm/vec2.hpp>
 #include <map>
 #include <vector>
+#include <optional>
+#include <span>
+
 
 /* Custom file format for Mashiro
  * INFO
@@ -28,28 +31,47 @@ class Tile;
 
 class File {
   public:
-    File(std::filesystem::path filename){};
-    ~File(){};
+    File(const File &) = delete;
+    File(File &&) = delete;
+    File &operator=(const File &) = delete;
+    File &operator=(File &&) = delete;
+
+    File(int resolution);
+    File(std::filesystem::path filename);
+    ~File();
+
+    void SetFilename(std::filesystem::path filename);
 
     void Open(std::filesystem::path filename);
-    void Save(std::filesystem::path filename);
-    void Close();
+    void Save();
+    void SaveAs(std::filesystem::path filename);
 
-    Tile *GetTile(int x, int y){};
+    std::optional<std::vector<uint32_t>> GetTexture(int x, int y);
+    void SaveTexture(int x, int y, std::span<uint32_t> pixels, int compression = 4);
 
   private:
     // store all the tile and is referenced by the canvas after
+    std::filesystem::path _filename;
+    bool _save_on_close;
 
     // INFO
-    char bom[2];
-    char type[4];
-    uint8_t version[2];
-    uint32_t size;
+    struct Info {
+        char _type[4];
+        uint8_t _version[4];
+        uint64_t _size;
+        uint32_t _header_count;
+        uint32_t _resolution;
+    } _info;
 
-    // HEADER
-    uint32_t resolution;
+    std::map<std::pair<int, int>, size_t> _textures_indexes;
 
     // BODY
-    std::map<std::pair<int, int>, size_t> _coord_indexes;
-    std::vector<Tile> _textures;
+    std::vector<std::vector<uint8_t>> _pngs;
+
+    struct TileHeader {
+        int32_t coord[2];
+        uint64_t start;
+        uint64_t len;
+    };
+
 };
