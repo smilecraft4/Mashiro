@@ -131,6 +131,8 @@ static std::vector<uint8_t> Write(int compression, int width, int height, std::s
 }
 
 File::File(int resolution) {
+    _save_on_close = true;
+
     strcpy_s(_info._type, "msh");
     _info._version[0] = 0;
     _info._version[1] = 0;
@@ -153,8 +155,30 @@ File::~File() {
     }
 }
 
+std::optional<std::unique_ptr<File>> File::Find(std::filesystem::path directory) {
+    if (!std::filesystem::is_directory(directory)) {
+        throw std::runtime_error("This path is not a folder path");
+        return {};
+    }
+
+    for (const auto &entry : std::filesystem::directory_iterator(directory)) {
+        if (entry.is_regular_file()) {
+            const auto &file = entry.path();
+            if (file.extension() == ".msh") {
+                return std::make_unique<File>(file);
+            }
+        }
+    }
+
+    return {};
+}
+
 void File::SetFilename(std::filesystem::path filename) {
     _filename = filename;
+}
+
+std::filesystem::path File::GetFilename() const {
+    return _filename;
 }
 
 void File::Open(std::filesystem::path filename) {
@@ -219,7 +243,7 @@ void File::SaveAs(std::filesystem::path filename) {
     for (const auto &[coord, index] : _textures_indexes) {
         tile_headers[index].coord[0] = coord.first;
         tile_headers[index].coord[1] = coord.second;
-        tile_headers[index].start = file.pubseekoff(0,  std::ios::cur);
+        tile_headers[index].start = file.pubseekoff(0, std::ios::cur);
         tile_headers[index].len = _pngs[index].size();
         pos = file.sputn(reinterpret_cast<char *>(_pngs[index].data()), _pngs[index].size());
         file.pubsync();
@@ -233,6 +257,21 @@ void File::SaveAs(std::filesystem::path filename) {
     pos = file.sputn(reinterpret_cast<char *>(tile_headers.data()), sizeof(TileHeader) * tile_headers.size());
 
     file.close();
+}
+
+std::vector<std::pair<int, int>> File::GetSavedTileLocation() const {
+    std::vector<std::pair<int, int>> tiles_saved;
+    tiles_saved.reserve(_textures_indexes.size());
+
+    for (const auto &[key, val] : _textures_indexes) {
+        tiles_saved.push_back(key);
+    }
+
+    return tiles_saved;
+}
+
+int File::GetTileResolution() const {
+    return _info._resolution;
 }
 
 std::optional<std::vector<uint32_t>> File::GetTexture(int x, int y) {

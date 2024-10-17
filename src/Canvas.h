@@ -12,6 +12,7 @@
 
 class App;
 class Tool;
+class File;
 
 class Canvas {
   public:
@@ -20,7 +21,8 @@ class Canvas {
     Canvas &operator=(const Canvas &) = delete;
     Canvas &operator=(Canvas &&) = delete;
 
-    Canvas(const App *app, glm::ivec2 tiles_size = {512, 512});
+    void LoadFile();
+    Canvas(App *app, glm::ivec2 tiles_size = {512, 512});
     ~Canvas();
 
     /**
@@ -38,6 +40,11 @@ class Canvas {
      * @brief Render canvas
      */
     void Render();
+
+    /**
+     * @brief Save all the tiles that are unsaved
+     */
+    void SaveTiles();
 
     GLuint _tiles_ubo;
     glm::ivec2 _tiles_size;
@@ -59,7 +66,7 @@ class Canvas {
     bool GetTileIndex(glm::ivec2 position, size_t &index);
 
   private:
-    const App *_app;
+    App *_app;
 
     GLuint _tiles_mesh;
     GLuint _tiles_program;

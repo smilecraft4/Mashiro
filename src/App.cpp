@@ -15,10 +15,27 @@ App::App() : _data(cmrc::mashiro::get_filesystem()), _painting{}, _navigation{} 
     _title = "Mashiro";
     _fullscreen = false;
 
+    _settings = std::make_unique<Settings>();
+
     InitGLFW();
     InitOpenGL();
 
-    _canvas = std::make_unique<Canvas>(this, glm::ivec2(128, 128));
+    _canvas = std::make_unique<Canvas>(this, glm::ivec2(_settings->_tile_resolution, _settings->_tile_resolution));
+
+    auto file = File::Find("./");
+    if (file.has_value()) {
+        std::swap(_file, file.value());
+        _settings->_recent_files.push_back(_file->GetFilename());
+    } else {
+        _file = std::make_unique<File>(_settings->_tile_resolution);
+        _file->SetFilename("./mashiro.msh");
+        _settings->_recent_files.push_back("./mashiro.msh");
+    }
+
+    _canvas->LoadFile();
+
+    glfwSetWindowTitle(_window, _file->GetFilename().string().c_str());
+
     _viewport = std::make_unique<Viewport>(this, _width, _height);
     _brush = std::make_unique<Brush>(this);
 
@@ -27,6 +44,8 @@ App::App() : _data(cmrc::mashiro::get_filesystem()), _painting{}, _navigation{} 
 }
 
 App::~App() {
+    _canvas->SaveTiles();
+
     glfwDestroyWindow(_window);
     glfwTerminate();
 }

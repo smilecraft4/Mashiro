@@ -1,12 +1,27 @@
 #include "Canvas.h"
 #include "App.h"
+#include "File.h"
 #include <format>
 #include <glm/gtc/type_ptr.hpp>
 #include <set>
 #include <spdlog/spdlog.h>
 #include <string>
 
-Canvas::Canvas(const App *app, glm::ivec2 tiles_size) : _app(app), _tiles_size(tiles_size) {
+void Canvas::LoadFile() {
+    // clear everying
+    _tiles.clear();
+    _tiles_index.clear();
+
+    const auto tile_to_load = _app->_file->GetSavedTileLocation();
+    _tiles.reserve(tile_to_load.size());
+    for (size_t i = 0; i < tile_to_load.size(); i++) {
+        _tiles_index.emplace(tile_to_load[i], _tiles.size());
+        _tiles.push_back(Tile(this, _app->_file.get(), {tile_to_load[i].first, tile_to_load[i].second},
+                              glm::ivec2(_app->_file->GetTileResolution())));
+    }
+}
+
+Canvas::Canvas(App *app, glm::ivec2 tiles_size) : _app(app), _tiles_size(tiles_size) {
     // Compile shader
     _tiles_program = glCreateProgram();
     std::string program_name = "Tiles Program";
@@ -80,6 +95,14 @@ void Canvas::Render() {
     RenderTiles();
 }
 
+void Canvas::SaveTiles() {
+    for (auto &tile : _tiles) {
+        if (!tile._saved) {
+            tile.Save(_app->_file.get());        
+        }
+    }
+}
+
 void Canvas::UpdateTilesProcessed(std::vector<glm::vec2> brush_path, float range) {
     // Retrieve where the Tool is going to work
     // const auto tool_work_region = _app->GetToolWorkRegion() // returns the path coordinates where the Tool is going
@@ -88,7 +111,7 @@ void Canvas::UpdateTilesProcessed(std::vector<glm::vec2> brush_path, float range
     // Find the tiles that are going to be processed
     std::set<std::pair<int, int>> processed_id;
     for (size_t i = 0; i < brush_path.size(); i++) {
-        // extends this path to include all tiles that are at a distance 
+        // extends this path to include all tiles that are at a distance
         for (int x = -1; x <= 1; x++) {
             for (int y = -1; y <= 1; y++) {
                 const glm::ivec2 coord = glm::floor(brush_path[i] / glm::vec2(_tiles_size));
@@ -104,7 +127,7 @@ void Canvas::UpdateTilesProcessed(std::vector<glm::vec2> brush_path, float range
             size_t index = _tiles.size();
             _tiles_index.emplace(id, index);
 
-            _tiles.emplace_back(Tile(this, {id.first, id.second}, _tiles_size));
+            _tiles.emplace_back(Tile(this, _app->_file.get(), {id.first, id.second}, _tiles_size));
         }
     }
 

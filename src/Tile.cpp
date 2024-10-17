@@ -1,24 +1,26 @@
 #include "Tile.h"
 #include "App.h"
 #include "Canvas.h"
+#include "File.h"
 #include <format>
 #include <spdlog/spdlog.h>
 #include <string>
 
 // Tile state
 
-Tile::Tile(const Canvas *canvas, glm::ivec2 position, glm::ivec2 size) : _canvas(canvas), _tile_data() {
+Tile::Tile(const Canvas *canvas, File *file, glm::ivec2 position, glm::ivec2 size) : _canvas(canvas), _tile_data() {
     _tile_data._size = size;
     _tile_data._position = position;
+    _saved = false;
 
-    Load();
+    Load(file);
 }
 
 Tile::~Tile() {
     Release();
 }
 
-Tile::Tile(Tile &&other) noexcept{
+Tile::Tile(Tile &&other) noexcept {
     _canvas = other._canvas;
     _active = other._active;
     _loaded = other._loaded;
@@ -26,7 +28,6 @@ Tile::Tile(Tile &&other) noexcept{
     _saved = other._saved;
     _texture_ID = other._texture_ID;
     _tile_data = other._tile_data;
-    _pixels = other._pixels;
 
     other._canvas = nullptr;
     other._active = false;
@@ -35,7 +36,6 @@ Tile::Tile(Tile &&other) noexcept{
     other._saved = false;
     other._texture_ID = 0;
     other._tile_data = TileData();
-    other._pixels.clear();
 }
 
 Tile &Tile::operator=(Tile &&other) noexcept {
@@ -55,30 +55,42 @@ void Tile::BindUniform() const {
 
 void Tile::SetActive(bool active) {
     _active = active;
+    if (active) {
+        _saved = false;
+    }
 }
 
-void Tile::Save() {
+void Tile::Save(File *file) {
     if (_saved) {
-        spdlog::trace("Tile_{}_{} is already saved", _tile_data._position.x, _tile_data._position.x);
+        spdlog::warn("Tile_{}_{} is already saved", _tile_data._position.x, _tile_data._position.y);
         return;
     }
     // TODO add multithreading
-    spdlog::trace("Saving Tile_{}_{}", _tile_data._position.x, _tile_data._position.x);
-    _pixels = std::vector<std::uint8_t>(_tile_data._size.x * _tile_data._size.y * 4);
-    glGetTexImage(_texture_ID, 0, GL_RGBA, GL_UNSIGNED_BYTE, _pixels.data());
+    spdlog::warn("Saving Tile_{}_{}", _tile_data._position.x, _tile_data._position.y);
+
+    auto pixels = std::vector<std::uint32_t>(_tile_data._size.x * _tile_data._size.y);
+    glBindTexture(GL_TEXTURE_2D, _texture_ID);
+    glGetTexImage(GL_TEXTURE_2D, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels.data());
+    glBindTexture(GL_TEXTURE_2D, 0);
+
     // Update texture in the file
+
     // Auto-save file using another thread
+    file->SaveTexture(_tile_data._position.x, _tile_data._position.y, pixels);
+    _saved = true;
 }
 
-void Tile::Load() {
-    spdlog::trace("Loading Tile_{}_{}", _tile_data._position.x, _tile_data._position.x);
-    // TODO add multithreading
-    // find grid in the file
-    // if it exist load the pixel
-    // const std::vector<uint32_t> tile_pixels = _app->_file->GetTilePixels(_tile_data._position)
-    // else load a blank pixel
-    const std::vector<uint32_t> tile_pixels(_tile_data._size.x * _tile_data._size.y, 0x00000000);
-    // Create the texture
+void Tile::Load(File *file) {
+    spdlog::warn("Loading Tile_{}_{}", _tile_data._position.x, _tile_data._position.y);
+
+    const auto raw = file->GetTexture(_tile_data._position.x, _tile_data._position.y);
+    std::vector<uint32_t> tile_pixels;
+    if (raw.has_value()) {
+        tile_pixels = raw.value();
+    } else {
+        tile_pixels = std::vector<uint32_t>(_tile_data._size.x * _tile_data._size.y, 0x00000000);
+    }
+
     glGenTextures(1, &_texture_ID);
     glBindTexture(GL_TEXTURE_2D, _texture_ID);
     std::string text = std::format("Canvas Texture ({},{})", _tile_data._position.x, _tile_data._position.y).c_str();
@@ -94,6 +106,8 @@ void Tile::Load() {
 
     // Is this necesseary
     glGenerateMipmap(GL_TEXTURE_2D);
+
+    _saved = true;
 }
 
 void Tile::Unload() {

@@ -11,6 +11,8 @@
 #include "Canvas.h"
 #include "Viewport.h"
 #include "Stylus.h"
+#include "File.h"
+#include "Settings.h"
 
 class App {
   public:
@@ -26,6 +28,12 @@ class App {
     void Update();
 
     cmrc::embedded_filesystem _data;
+    std::unique_ptr<Viewport> _viewport;
+    std::unique_ptr<Brush> _brush;
+    std::unique_ptr<Stylus> _stylus;
+    std::unique_ptr<Canvas> _canvas;
+    std::unique_ptr<File> _file;
+    std::unique_ptr<Settings> _settings;
 
   protected:
     bool InitGLFW();
@@ -53,10 +61,7 @@ class App {
 
     glm::dvec2 _cursor_previous;
 
-    std::unique_ptr<Viewport> _viewport;
-    std::unique_ptr<Brush> _brush;
-    std::unique_ptr<Stylus> _stylus;
-    std::unique_ptr<Canvas> _canvas;
+
 
     // std::unique_ptr<Preferences> _preferences;
     // std::unique_ptr<Renderer> _renderer;

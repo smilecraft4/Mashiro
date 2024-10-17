@@ -15,7 +15,7 @@ target_sources(mashiro PRIVATE
     "Tile.h" "Tile.cpp" 
     "Stylus.h" "Stylus.cpp"
     "File.cpp" "File.h"
-)
+ "Settings.h" "Settings.cpp")
 
 # Install
 target_link_libraries(mashiro PRIVATE 

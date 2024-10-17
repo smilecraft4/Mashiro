@@ -40,11 +40,17 @@ class File {
     File(std::filesystem::path filename);
     ~File();
 
+    static std::optional<std::unique_ptr<File>> Find(std::filesystem::path directory);
+
     void SetFilename(std::filesystem::path filename);
+    std::filesystem::path GetFilename() const;
 
     void Open(std::filesystem::path filename);
     void Save();
     void SaveAs(std::filesystem::path filename);
+
+    std::vector<std::pair<int, int>> GetSavedTileLocation() const;
+    int GetTileResolution() const;
 
     std::optional<std::vector<uint32_t>> GetTexture(int x, int y);
     void SaveTexture(int x, int y, std::span<uint32_t> pixels, int compression = 4);
