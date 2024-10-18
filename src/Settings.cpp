@@ -4,6 +4,7 @@ Settings::Settings() {
     recent_file_max_len = 10;
     _filename = "./settings.ini";
     _tile_resolution = 256;
+    _file_compression = 5;
     _recent_files = std::vector<std::filesystem::path>();
     _recent_files.reserve(recent_file_max_len);
 }

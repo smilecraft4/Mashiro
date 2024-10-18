@@ -9,10 +9,10 @@
 
 #include "Brush.h"
 #include "Canvas.h"
-#include "Viewport.h"
-#include "Stylus.h"
 #include "File.h"
 #include "Settings.h"
+#include "Stylus.h"
+#include "Viewport.h"
 
 class App {
   public:
@@ -34,6 +34,7 @@ class App {
     std::unique_ptr<Canvas> _canvas;
     std::unique_ptr<File> _file;
     std::unique_ptr<Settings> _settings;
+    GLFWwindow *_window;
 
   protected:
     bool InitGLFW();
@@ -56,12 +57,12 @@ class App {
     int _height;
     std::string _title;
 
-    GLFWwindow *_window;
     GLFWmonitor *_monitor;
 
     glm::dvec2 _cursor_previous;
 
-
+    GLuint _screen_program;
+    GLuint _screen_mesh;
 
     // std::unique_ptr<Preferences> _preferences;
     // std::unique_ptr<Renderer> _renderer;

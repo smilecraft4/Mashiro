@@ -46,7 +46,14 @@ class Settings {
         // Shortcuts
 
     // Advanced
+    // Display tile borders
+    // Display tile state (loading, saving, culling, active, etc...)
+    // Enable culling
+    // Enable lazy-loading
+    // Enable lazy-saving
+    // Enable multithreading
     std::uint32_t _tile_resolution;
+    int _file_compression;
 
   private:
     // Personal

@@ -9,6 +9,7 @@ CMRC_DECLARE(mashiro);
 
 App::App() : _data(cmrc::mashiro::get_filesystem()), _painting{}, _navigation{} {
 
+    HRESULT hr = CoInitialize(NULL);
     // TODO: load from last openned LoadLastFilePreferences();
     _width = 800;
     _height = 600;
@@ -19,6 +20,49 @@ App::App() : _data(cmrc::mashiro::get_filesystem()), _painting{}, _navigation{} 
 
     InitGLFW();
     InitOpenGL();
+
+    _screen_program = glCreateProgram();
+    std::string screen_program_name = "Screen Program";
+    glObjectLabel(GL_PROGRAM, _screen_program, screen_program_name.size(), screen_program_name.c_str());
+
+    GLuint vertex_shader = glCreateShader(GL_VERTEX_SHADER);
+    const auto canvas_vert_file = _data.open("shaders/screen.vert");
+    std::string_view canvas_vert(canvas_vert_file.begin(), canvas_vert_file.end());
+    const char *canvas_vert_source = canvas_vert.data();
+    glShaderSource(vertex_shader, 1, &canvas_vert_source, nullptr);
+    glCompileShader(vertex_shader);
+
+    GLuint fragment_shader = glCreateShader(GL_FRAGMENT_SHADER);
+    const auto canvas_frag_file = _data.open("shaders/screen.frag");
+    std::string_view canvas_frag(canvas_frag_file.begin(), canvas_frag_file.end());
+    const char *canvas_frag_source = canvas_frag.data();
+    glShaderSource(fragment_shader, 1, &canvas_frag_source, nullptr);
+    glCompileShader(fragment_shader);
+
+    glAttachShader(_screen_program, vertex_shader);
+    glAttachShader(_screen_program, fragment_shader);
+    glLinkProgram(_screen_program);
+
+    GLint isLinked = 0;
+    glGetProgramiv(_screen_program, GL_LINK_STATUS, (int *)&isLinked);
+    if (isLinked == GL_FALSE) {
+        GLint maxLength = 0;
+        glGetProgramiv(_screen_program, GL_INFO_LOG_LENGTH, &maxLength);
+        std::vector<GLchar> infoLog(maxLength);
+        glGetProgramInfoLog(_screen_program, maxLength, &maxLength, &infoLog[0]);
+        spdlog::critical("{}", infoLog.data());
+    }
+    assert(isLinked && "Fail to linked program");
+
+    glDeleteShader(vertex_shader);
+    glDeleteShader(fragment_shader);
+
+    glGenVertexArrays(1, &_screen_mesh);
+    assert(_screen_mesh && "Failed to create canvas vertex array object");
+    glBindVertexArray(_screen_mesh);
+    std::string screen_mesh_name = "Screen Mesh";
+    glObjectLabel(GL_VERTEX_ARRAY, _screen_mesh, screen_mesh_name.size(), screen_mesh_name.c_str());
+
 
     _canvas = std::make_unique<Canvas>(this, glm::ivec2(_settings->_tile_resolution, _settings->_tile_resolution));
 
@@ -41,6 +85,8 @@ App::App() : _data(cmrc::mashiro::get_filesystem()), _painting{}, _navigation{} 
 
     _brush->SetColor({0.0f, 255.0f, 0.0f, 255.0f});
     _brush->SetPosition({0, 0});
+
+    _stylus = std::make_unique<Stylus>(this);
 }
 
 App::~App() {
@@ -48,6 +94,7 @@ App::~App() {
 
     glfwDestroyWindow(_window);
     glfwTerminate();
+    CoUninitialize();
 }
 
 void App::Run() {
@@ -66,6 +113,12 @@ void App::Update() {
 void App::Render() {
     glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
+
+    glUseProgram(_screen_program);
+    glBindVertexArray(_screen_mesh);
+    glDrawArrays(GL_TRIANGLES, 0, 3);
+    glBindVertexArray(0);
+    glUseProgram(0);
 
     _canvas->Render();
 
@@ -113,8 +166,8 @@ void App::KeyCallback(GLFWwindow *window, int key, int scancode, int action, int
         default:
             break;
         }
-        spdlog::info("enabled {}\t rotating {}\t zooming {}", app->_navigation.enabled, app->_navigation.rotating,
-                     app->_navigation.zooming);
+        // spdlog::info("enabled {}\t rotating {}\t zooming {}", app->_navigation.enabled, app->_navigation.rotating,
+        //             app->_navigation.zooming);
     }
 
     if (action == GLFW_RELEASE) {
@@ -133,8 +186,8 @@ void App::KeyCallback(GLFWwindow *window, int key, int scancode, int action, int
         default:
             break;
         }
-        spdlog::info("enabled {}\t rotating {}\t zooming {}", app->_navigation.enabled, app->_navigation.rotating,
-                     app->_navigation.zooming);
+        // spdlog::info("enabled {}\t rotating {}\t zooming {}", app->_navigation.enabled, app->_navigation.rotating,
+        //              app->_navigation.zooming);
     }
 
     app->Update();
@@ -184,7 +237,7 @@ void App::ButtonCallback(GLFWwindow *window, int button, int action, int mods) {
 
     if (button == GLFW_MOUSE_BUTTON_RIGHT) {
         if (action == GLFW_PRESS && !app->_painting.enabled) {
-            app->_brush->SetColor({255.0f, 255.0f, 255.0f, 127.0f});
+            app->_brush->SetColor({255.0f, 255.0f, 255.0f, 255.0f});
             app->_painting.enabled = true;
         } else if (action == GLFW_RELEASE) {
             app->_painting.enabled = false;
@@ -225,7 +278,7 @@ void App::Paint() {
 
     std::vector<glm::vec2> brush_path{{a.x, a.y}};
     const glm::ivec2 coord = glm::floor(brush_path[0] / glm::vec2(_canvas->_tiles_size));
-    spdlog::info("({},{}) -> ({}, {}) -> ({}, {})", xpos, ypos, a.x, a.y, coord.x, coord.y);
+    // spdlog::info("({},{}) -> ({}, {}) -> ({}, {})", xpos, ypos, a.x, a.y, coord.x, coord.y);
     _canvas->UpdateTilesProcessed(brush_path, _brush->GetRadius());
     _brush->SetPosition(a);
     _canvas->Process(_brush.get());

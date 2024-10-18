@@ -76,7 +76,7 @@ void Tile::Save(File *file) {
     // Update texture in the file
 
     // Auto-save file using another thread
-    file->SaveTexture(_tile_data._position.x, _tile_data._position.y, pixels);
+    file->SaveTexture(_tile_data._position.x, _tile_data._position.y, pixels, _canvas->_app->_settings->_file_compression);
     _saved = true;
 }
 
@@ -88,7 +88,7 @@ void Tile::Load(File *file) {
     if (raw.has_value()) {
         tile_pixels = raw.value();
     } else {
-        tile_pixels = std::vector<uint32_t>(_tile_data._size.x * _tile_data._size.y, 0x00000000);
+        tile_pixels = std::vector<uint32_t>(_tile_data._size.x * _tile_data._size.y, 0xFFFFFFFF);
     }
 
     glGenTextures(1, &_texture_ID);

@@ -48,6 +48,7 @@ class Canvas {
 
     GLuint _tiles_ubo;
     glm::ivec2 _tiles_size;
+    App *_app;
   protected:
     /**
      * @brief Disable rendering of tiles that are not visible by the viewport, that is, the user
@@ -66,7 +67,6 @@ class Canvas {
     bool GetTileIndex(glm::ivec2 position, size_t &index);
 
   private:
-    App *_app;
 
     GLuint _tiles_mesh;
     GLuint _tiles_program;

@@ -30,10 +30,20 @@ void main() {
 	const ivec2 tile_tex_pos = ivec2(gl_GlobalInvocationID.xy);
 	const ivec2 tile_tex_size = imageSize(tile_tex);
 	const vec2 pixel_pos = tile_data.position * tile_data.size + tile_tex_pos;
+ 
+	float alpha_falloff = smoothstep(brush_data.radius, brush_data.radius * brush_data.hardness, distance(pixel_pos, brush_data.position));
+	float color_falloff = step(brush_data.radius, distance(pixel_pos, brush_data.position));
 
-	float falloff =  smoothstep(brush_data.radius, 0.0, distance(pixel_pos, brush_data.position));
+	vec4 src = imageLoad(tile_tex, tile_tex_pos);
+	vec4 pixel;
 
-	vec4 pixel = imageLoad(tile_tex, tile_tex_pos);
-	pixel = mix(pixel, vec4(0.0, 1.0, 0.0, 1.0), brush_data.color.a * falloff);
+	vec4 brush_color = brush_data.color;
+	// brush_color.a *= alpha_falloff;
+
+	pixel = mix(src, brush_color, alpha_falloff);
+
+	vec4 debug = vec4(alpha_falloff, 0.0, color_falloff, 1.0);
+
 	imageStore(tile_tex, tile_tex_pos, pixel);
 }
+
