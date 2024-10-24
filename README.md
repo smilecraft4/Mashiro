@@ -38,4 +38,4 @@ Mashiro is born because I rely too much on the speed of the Ctrl-Z to draw. If i
 ## 🛠 Technical Info
 (╯▔皿▔)╯ ~~I use D3D11 with Win32.. for now... I think~~   
 (´。＿。｀) ~~I use glfw and opengl~~  
-I use glfw and opengl  
+I use win32 and opengl  
