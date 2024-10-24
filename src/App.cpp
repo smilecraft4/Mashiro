@@ -1,465 +1,460 @@
 #include "App.h"
-#include <cassert>
-#include <glm/gtc/matrix_transform.hpp>
-#include <glm/gtc/type_ptr.hpp>
-#include <spdlog/spdlog.h>
-#include <stb_image.h>
+#include "Log.h"
+#include "Resource.h"
 
-CMRC_DECLARE(mashiro);
+int App::nOpenContexts = 0;
+int App::nAttachedDevices = 0;
 
-App::App() : _data(cmrc::mashiro::get_filesystem()), _painting{}, _navigation{} {
-    // TODO: load from last openned LoadLastFilePreferences();
-    _width = 800;
-    _height = 600;
-    _title = "Mashiro";
-    _fullscreen = false;
+HCTX App::_hctx = nullptr;
+HCTX App::_hctxLast = nullptr;
+double App::_scaleWidth = 0.0;
+double App::_scaleHeight = 0.0;
+RECT App::_clientRect = {0};
+RECT App::_windowRect = {0};
+MONITORINFO App::_monInfo = {0};
 
-    _settings = std::make_unique<Settings>();
+App *g_app = nullptr;
 
-    InitGLFW();
-    InitOpenGL();
+/// Asks Wintab for a data packet.  Normally would use this in response to
+/// a non-Wintab event, such as a mouse event.  If new data received, the
+/// drawing area is invalidated so that the data can be drawn.
+///
+void App::PollForPenData(HCTX hCtx_I, HWND hWnd_I, POINT &ptOld_I, UINT &prsOld_I, POINT &ptNew_O, UINT &prsNew_O) {
+    PACKET pkts[MAX_PACKETS] = {0};
 
-    _screen_program = glCreateProgram();
-    std::string screen_program_name = "Screen Program";
-    glObjectLabel(GL_PROGRAM, _screen_program, screen_program_name.size(), screen_program_name.c_str());
+    // Get up to MAX_PACKETS from Wintab data packet cache per request.
+    int numPackets = gpWTPacketsGet(hCtx_I, MAX_PACKETS, (LPVOID)pkts);
 
-    GLuint vertex_shader = glCreateShader(GL_VERTEX_SHADER);
-    const auto canvas_vert_file = _data.open("shaders/screen.vert");
-    std::string_view canvas_vert(canvas_vert_file.begin(), canvas_vert_file.end());
-    const char *canvas_vert_source = canvas_vert.data();
-    glShaderSource(vertex_shader, 1, &canvas_vert_source, nullptr);
-    glCompileShader(vertex_shader);
+    for (int idx = 0; idx < numPackets; idx++) {
+        PACKET *pkt = &pkts[idx];
 
-    GLuint fragment_shader = glCreateShader(GL_FRAGMENT_SHADER);
-    const auto canvas_frag_file = _data.open("shaders/screen.frag");
-    std::string_view canvas_frag(canvas_frag_file.begin(), canvas_frag_file.end());
-    const char *canvas_frag_source = canvas_frag.data();
-    glShaderSource(fragment_shader, 1, &canvas_frag_source, nullptr);
-    glCompileShader(fragment_shader);
+        // WacomTrace("pkt: x,y,p: %i,%i,%i\n", pkt->pkX, pkt->pkY, pkt->pkNormalPressure);
 
-    glAttachShader(_screen_program, vertex_shader);
-    glAttachShader(_screen_program, fragment_shader);
-    glLinkProgram(_screen_program);
+        ptOld_I = ptNew_O;
+        prsOld_I = prsNew_O;
 
-    GLint isLinked = 0;
-    glGetProgramiv(_screen_program, GL_LINK_STATUS, (int *)&isLinked);
-    if (isLinked == GL_FALSE) {
-        GLint maxLength = 0;
-        glGetProgramiv(_screen_program, GL_INFO_LOG_LENGTH, &maxLength);
-        std::vector<GLchar> infoLog(maxLength);
-        glGetProgramInfoLog(_screen_program, maxLength, &maxLength, &infoLog[0]);
-        spdlog::critical("{}", infoLog.data());
+        ptNew_O.x = pkt->pkX;
+        ptNew_O.y = pkt->pkY;
+
+        prsNew_O = pkt->pkNormalPressure;
+
+        if (ptNew_O.x != ptOld_I.x || ptNew_O.y != ptOld_I.y || prsNew_O != prsOld_I) {
+            InvalidateRect(hWnd_I, nullptr, false);
+        }
     }
-    assert(isLinked && "Fail to linked program");
+}
 
-    glDeleteShader(vertex_shader);
-    glDeleteShader(fragment_shader);
+void DumpWintabContext(const LOGCONTEXTA &ctx_I) {
+    WacomTrace("***********************************************\n");
+    WacomTrace("Context:\n");
+    WacomTrace("  lcName:      %s\n", ctx_I.lcName);
+    WacomTrace("  lcOptions:   %i\n", ctx_I.lcOptions);
+    WacomTrace("  lcStatus:    %i\n", ctx_I.lcStatus);
+    WacomTrace("  lcLocks:     %i\n", ctx_I.lcLocks);
+    WacomTrace("  lcMsgBase:   %i\n", ctx_I.lcMsgBase);
+    WacomTrace("  lcDevice:    %i\n", ctx_I.lcDevice);
+    WacomTrace("  lcPktRate:   %i\n", ctx_I.lcPktRate);
+    WacomTrace("  lcPktData:   %i\n", ctx_I.lcPktData);
+    WacomTrace("  lcPktMode:   %i\n", ctx_I.lcPktMode);
+    WacomTrace("  lcMoveMask:  0x%X\n", ctx_I.lcMoveMask);
+    WacomTrace("  lcBtnDnMask: 0x%X\n", ctx_I.lcBtnDnMask);
+    WacomTrace("  lcBtnUpMask: 0x%X\n", ctx_I.lcBtnUpMask);
+    WacomTrace("  lcInOrgX:    %i\n", ctx_I.lcInOrgX);
+    WacomTrace("  lcInOrgY:    %i\n", ctx_I.lcInOrgY);
+    WacomTrace("  lcInOrgZ:    %i\n", ctx_I.lcInOrgZ);
+    WacomTrace("  lcInExtX:    %i\n", ctx_I.lcInExtX);
+    WacomTrace("  lcInExtY:    %i\n", ctx_I.lcInExtY);
+    WacomTrace("  lcInExtZ:    %i\n", ctx_I.lcInExtZ);
+    WacomTrace("  lcOutOrgX:   %i\n", ctx_I.lcOutOrgX);
+    WacomTrace("  lcOutOrgY:   %i\n", ctx_I.lcOutOrgY);
+    WacomTrace("  lcOutOrgZ:   %i\n", ctx_I.lcOutOrgZ);
+    WacomTrace("  lcOutExtX:   %i\n", ctx_I.lcOutExtX);
+    WacomTrace("  lcOutExtY:   %i\n", ctx_I.lcOutExtY);
+    WacomTrace("  lcOutExtZ:   %i\n", ctx_I.lcOutExtZ);
+    WacomTrace("  lcSensX:     %i\n", ctx_I.lcSensX);
+    WacomTrace("  lcSensY:     %i\n", ctx_I.lcSensY);
+    WacomTrace("  lcSensZ:     %i\n", ctx_I.lcSensZ);
+    WacomTrace("  lcSysMode:   %i\n", ctx_I.lcSysMode);
+    WacomTrace("  lcSysOrgX:   %i\n", ctx_I.lcSysOrgX);
+    WacomTrace("  lcSysOrgY:   %i\n", ctx_I.lcSysOrgY);
+    WacomTrace("  lcSysExtX:   %i\n", ctx_I.lcSysExtX);
+    WacomTrace("  lcSysExtY:   %i\n", ctx_I.lcSysExtY);
+    WacomTrace("  lcSysSensX:  %i\n", ctx_I.lcSysSensX);
+    WacomTrace("  lcSysSensY:  %i\n", ctx_I.lcSysSensY);
+    WacomTrace("***********************************************\n");
+}
 
-    glGenVertexArrays(1, &_screen_mesh);
-    assert(_screen_mesh && "Failed to create canvas vertex array object");
-    glBindVertexArray(_screen_mesh);
-    std::string screen_mesh_name = "Screen Mesh";
-    glObjectLabel(GL_VERTEX_ARRAY, _screen_mesh, screen_mesh_name.size(), screen_mesh_name.c_str());
+App::App(HINSTANCE instance, int show_cmd) : _instance(instance), _show_cmd(show_cmd) {
+    g_app = this; // Must be first
 
-    _canvas = std::make_unique<Canvas>(this, glm::ivec2(_settings->_tile_resolution, _settings->_tile_resolution));
+    Log::Info(TEXT("Mashiro starting"));
 
-    auto file = File::Find("./");
-    if (file.has_value()) {
-        std::swap(_file, file.value());
-        _settings->_recent_files.push_back(_file->GetFilename());
+    if (!LoadWintab()) {
+        throw std::runtime_error("Failed to initialize wintab.dll");
+    }
+
+    /* check if WinTab available. */
+    if (!gpWTInfoA(0, 0, nullptr)) {
+        ShowError("WinTab Services Not Available.");
+    }
+
+    // Make sure that we are using system context if using mouse messages
+    // to indicate the pen position.
+    if (g_app->_useMouseMessages) {
+        g_app->_openSystemContext = true;
+    }
+
+    SetPaintingMode();
+
+    // InitSettings
+    _window_class = std::make_unique<WindowClass>(_instance, TEXT("Mashiro"));
+    _window = std::make_unique<Window>(800, 600, TEXT("Mashiro"));
+}
+
+App::~App() noexcept {
+    //_canvas->Save(_opened_file.get());
+    //_opened_file->Save();
+
+    UnloadWintab();
+    Log::Info(TEXT("Mashiro closing"));
+}
+
+void App::Run() const {
+    _window->Show();
+
+    Log::Info(TEXT("Mashiro running"));
+
+    MSG msg = {};
+    while (GetMessage(&msg, nullptr, 0, 0) > 0) {
+        if (!TranslateAccelerator(_window->Hwnd(), _window_class->Accel(), &msg)) {
+            TranslateMessage(&msg);
+            DispatchMessage(&msg);
+        }
+
+        if (_opened_file && _canvas) {
+            _canvas->LazySave({0.0f, 0.0f}, _opened_file.get());
+        }
+    }
+}
+
+void App::EnableBrush(bool enable) {
+    _brush_enabled = enable;
+}
+
+bool NEAR App::OpenTabletContexts(HWND hWnd) {
+
+    int ctxIndex = 0;
+    g_app->nOpenContexts = 0;
+    g_app->nAttachedDevices = 0;
+    std::stringstream szTabletName;
+
+    g_app->_contextMap.clear();
+
+    gpWTInfoA(WTI_INTERFACE, IFC_NDEVICES, &g_app->nAttachedDevices);
+    WacomTrace("Number of attached devices: %i\n", g_app->nAttachedDevices);
+
+    // Open/save contexts until first failure to open a context.
+    // Note that gpWTInfoA(WTI_STATUS, STA_CONTEXTS, &nOpenContexts);
+    // will not always let you enumerate through all contexts.
+    do {
+        int foundCtx = 0;
+        LOGCONTEXTA lcMine = {0};
+        UINT wWTInfoRetVal = 0;
+        AXIS tabletX = {0};
+        AXIS tabletY = {0};
+        AXIS Pressure = {0};
+
+        WacomTrace("Getting info on contextIndex: %i ...\n", ctxIndex);
+
+        if (g_app->_openSystemContext) {
+            // Opens a system context; XY returned as pixels for all
+            // attached tablets.
+            WacomTrace("Opening WTI_DEFSYSCTX (system context)...\n");
+            foundCtx = gpWTInfoA(WTI_DEFSYSCTX, 0, &lcMine);
+        } else {
+            // Opens a digitizer context; XY returned as tablet coordinates for
+            // each attached tablet.
+            WacomTrace("Opening WTI_DDCTXS (digitizer context)...\n");
+            foundCtx = gpWTInfoA(WTI_DDCTXS + ctxIndex, 0, &lcMine);
+
+            // Use this flavor of digitizing context if not enumerating tablets.
+            // Opens a "virtual" context used for all tablets.
+            // foundCtx = gpWTInfoA(WTI_DEFCONTEXT, 0, &lcMine);
+        }
+
+        if (foundCtx > 0) {
+            UINT result = 0;
+            wWTInfoRetVal = gpWTInfoA(WTI_DEVICES + ctxIndex, DVC_HARDWARE, &result);
+            bool displayTablet = result & HWC_INTEGRATED;
+
+            gpWTInfoA(WTI_DEVICES + ctxIndex, DVC_PKTRATE, &result);
+            WacomTrace("pktrate: %i\n", result);
+
+            char name[1024];
+            gpWTInfoA(WTI_DEVICES + -1, DVC_NAME, name);
+            WacomTrace("name: %s\n", name);
+
+            WacomTrace("Current context tablet type is: %s\n", displayTablet ? "display (integrated)" : "opaque");
+
+            lcMine.lcPktData = PACKETDATA;
+            lcMine.lcOptions |= CXO_MESSAGES;
+
+            if (g_app->_penMovesSystemCursor) {
+                lcMine.lcOptions |= CXO_SYSTEM; // move system cursor
+            } else {
+                lcMine.lcOptions &= ~CXO_SYSTEM; // don't move system cursor
+            }
+
+            lcMine.lcPktMode = PACKETMODE;
+            lcMine.lcMoveMask = PACKETDATA;
+            lcMine.lcBtnUpMask = lcMine.lcBtnDnMask;
+
+            // Set the entire tablet as active
+            wWTInfoRetVal = gpWTInfoA(WTI_DEVICES + ctxIndex, DVC_X, &tabletX);
+            if (wWTInfoRetVal != sizeof(AXIS)) {
+                WacomTrace("This context should not be opened.\n");
+                continue;
+            }
+
+            wWTInfoRetVal = gpWTInfoA(WTI_DEVICES + ctxIndex, DVC_Y, &tabletY);
+
+            gpWTInfoA(WTI_DEVICES + ctxIndex, DVC_NPRESSURE, &Pressure);
+            WacomTrace("Pressure: %i, %i\n", Pressure.axMin, Pressure.axMax);
+
+            if (g_app->_openSystemContext) {
+                // leave lcIn* and lcOut* as-is except for reversing lcOutExtY.
+            } else // digitizer context
+            {
+                // This is essential code that picks up orientation changes.
+                // The reason for the calculations is to convert the tablet
+                // Max/Min values to extents (counts).
+                lcMine.lcOutExtX = tabletX.axMax - tabletX.axMin + 1;
+                lcMine.lcOutExtY = tabletY.axMax - tabletY.axMin + 1;
+
+                if (g_app->_useActualDigitizerOutput) {
+                    // This is bumped to communicate to the driver that we
+                    // want to use the fixed behavior to get actual tablet output.
+                    lcMine.lcOutExtX++;
+                }
+            }
+
+            // In Wintab, the tablet origin is lower left.  Move origin to upper left
+            // so that it coincides with screen origin.
+            lcMine.lcOutExtY = -lcMine.lcOutExtY;
+
+            // Leave the system origin and extents as received:
+            // lcSysOrgX, lcSysOrgY, lcSysExtX, lcSysExtY
+
+            DumpWintabContext(lcMine);
+
+            // Open the context enabled.
+            HCTX hCtx = gpWTOpenA(hWnd, &lcMine, true);
+
+            // Save the first context, to be used to poll first tablet found when
+            // mouse messages are received.
+            if (g_app->_useMouseMessages && !g_app->_hCtxUsedForPolling && hCtx) {
+                g_app->_hCtxUsedForPolling = hCtx;
+            }
+
+            if (hCtx) {
+
+                TabletInfo info = {Pressure.axMax, RGB(0, 0, 0)};
+                sprintf(info.name, "Tablet: %i\n", ctxIndex);
+                info.tabletXExt = tabletX.axMax;
+                info.tabletYExt = tabletY.axMax;
+                info.displayTablet = displayTablet;
+                g_app->_contextMap[hCtx] = info;
+                WacomTrace("Opened context: 0x%X for ctxIndex: %i\n", hCtx, ctxIndex);
+                g_app->nOpenContexts++;
+            } else {
+                WacomTrace("Did NOT open context for ctxIndex: %i\n", ctxIndex);
+            }
+        } else {
+            WacomTrace("No context info for ctxIndex: %i, bailing out...\n", ctxIndex);
+            break;
+        }
+
+        if (g_app->_openSystemContext) {
+            break; // we're done; only the one context; bail out...
+        }
+
+        ctxIndex++;
+    } while (true);
+
+    if (g_app->nOpenContexts < g_app->nAttachedDevices && !g_app->_openSystemContext) {
+        ShowError("Oops - did not open a context for each attached device");
+    }
+
+    return g_app->nAttachedDevices > 0;
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Close all opened tablet contexts.
+//
+void App::CloseTabletContexts(void) {
+    // Close all contexts we opened so we don't have them lying around in prefs.
+    for (std::map<HCTX, App::TabletInfo>::iterator it = g_app->_contextMap.begin(); it != g_app->_contextMap.end();
+         ++it) {
+        HCTX hCtx = it->first;
+        WacomTrace("Closing context: 0x%X\n", hCtx);
+
+        if (hCtx != nullptr) {
+            gpWTClose(hCtx);
+        }
+    }
+
+    g_app->_contextMap.clear();
+
+    g_app->nOpenContexts = 0;
+    g_app->nAttachedDevices = 0;
+
+    g_app->_hctx = nullptr;
+    g_app->_hctxLast = nullptr;
+    g_app->_hCtxUsedForPolling = nullptr;
+    g_app->_scaleWidth = 0.0;
+    g_app->_scaleHeight = 0.0;
+}
+
+///////////////////////////////////////////////////////////////////////////////
+
+void App::UpdateWindowExtents(HWND hWnd) {
+    // Compute scaling factor from tablet to display.
+    if (g_app->_contextMap.count(g_app->_hctx) != 0) {
+        App::TabletInfo info = g_app->_contextMap[g_app->_hctx];
+        if (g_app->_contextMap[g_app->_hctx].displayTablet) {
+            if (g_app->_kioskDisplay) {
+                // Scale tablet to app window rect
+                ::GetWindowRect(hWnd, &g_app->_windowRect);
+                double winWidth =
+                    static_cast<double>(g_app->_windowRect.right) - static_cast<double>(g_app->_windowRect.left);
+                double winHeight =
+                    static_cast<double>(g_app->_windowRect.bottom) - static_cast<double>(g_app->_windowRect.top);
+                g_app->_scaleWidth = winWidth / (double)info.tabletXExt;
+                g_app->_scaleHeight = winHeight / (double)info.tabletYExt;
+            } else {
+                // Scale tablet to monitor
+                HMONITOR hMon = ::MonitorFromWindow(hWnd, MONITOR_DEFAULTTONEAREST);
+                g_app->_monInfo = {0};
+                g_app->_monInfo.cbSize = sizeof(MONITORINFO);
+                ::GetMonitorInfo(hMon, &g_app->_monInfo);
+                double monWidth = static_cast<double>(g_app->_monInfo.rcMonitor.right) -
+                                  static_cast<double>(g_app->_monInfo.rcMonitor.left);
+                double monHeight = static_cast<double>(g_app->_monInfo.rcMonitor.bottom) -
+                                   static_cast<double>(g_app->_monInfo.rcMonitor.top);
+                g_app->_scaleWidth = monWidth / (double)info.tabletXExt;
+                g_app->_scaleHeight = monHeight / (double)info.tabletYExt;
+
+                // WacomTrace("UpdateWindowExtents: mon: %f,%f, tabletExt: %f,%f\n", monWidth, monHeight,
+                // (double)info.tabletXExt, (double)info.tabletYExt);
+            }
+        } else {
+            // Scales tablet to entire desktop.
+            g_app->_scaleWidth = (double)g_app->_sysWidth / (double)info.tabletXExt;
+            g_app->_scaleHeight = (double)g_app->_sysHeight / (double)info.tabletYExt;
+        }
+
+        InvalidateRect(hWnd, nullptr, true);
+    }
+}
+
+///////////////////////////////////////////////////////////////////////////////
+
+void App::UpdateSystemExtents() {
+    g_app->_sysWidth = GetSystemMetrics(SM_CXVIRTUALSCREEN);
+    g_app->_sysHeight = GetSystemMetrics(SM_CYVIRTUALSCREEN);
+    g_app->_sysOrigX = GetSystemMetrics(SM_XVIRTUALSCREEN);
+    g_app->_sysOrigY = GetSystemMetrics(SM_YVIRTUALSCREEN);
+}
+
+///////////////////////////////////////////////////////////////////////////////
+
+bool App::HasAttachedDisplayTablet() {
+    for (std::map<HCTX, App::TabletInfo>::iterator it = g_app->_contextMap.begin(); it != g_app->_contextMap.end();
+         ++it) {
+        if (it->second.displayTablet) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+///////////////////////////////////////////////////////////////////////////////
+
+void App::Init(HWND hwnd) {
+
+    UpdateSystemExtents();
+
+    // Initialize a Wintab context for each connected tablet.
+    if (!OpenTabletContexts(hwnd)) {
+        throw std::runtime_error("No tablets found.");
+        // SendMessage(hWnd, WM_DESTROY, 0, 0L);
+    }
+
+    glEnable(GL_CULL_FACE);
+    glCullFace(GL_BACK);
+    glFrontFace(GL_CCW);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glEnable(GL_BLEND);
+
+    _viewport = std::make_unique<Viewport>(glm::ivec2(800, 600));
+
+    //_app_uniformbuffer = Uniformbuffer::Create(TEXT("App Uniformbuffer"), 0, 0, nullptr);
+
+    _mesh = Mesh::Create(TEXT("Quad"));
+    _program = Program::Create(TEXT("test"));
+    _program->AddShader("data/default.frag", GL_FRAGMENT_SHADER);
+    _program->AddShader("data/default.vert", GL_VERTEX_SHADER);
+    _program->Compile();
+
+    _texture = Texture::Create(TEXT("Test"), 256, 256);
+    std::vector<std::uint32_t> pixels(256 * 256, 0xFFFF00FF);
+    _texture->SetPixels(pixels);
+    _texture->GenerateMipmaps();
+
+    _preferences = std::make_unique<Preferences>();
+
+    Canvas::Init();
+    Brush::Init();
+
+    if (std::filesystem::exists("./mashiro.msh")) {
+        _opened_file = File::Open("./mashiro.msh");
     } else {
-        _file = std::make_unique<File>(_settings->_tile_resolution);
-        _file->SetFilename("./mashiro.msh");
-        _settings->_recent_files.push_back("./mashiro.msh");
+        _opened_file = File::New("./mashiro.msh");
     }
 
-    _canvas->LoadFile();
+    _canvas = Canvas::Open(_opened_file.get());
 
-    glfwSetWindowTitle(_window, _file->GetFilename().string().c_str());
-
-    _viewport = std::make_unique<Viewport>(this, _width, _height);
-    _brush = std::make_unique<Brush>(this);
-
-    _brush->SetColor({0.0f, 255.0f, 0.0f, 255.0f});
-    _brush->SetPosition({0, 0});
-}
-
-App::~App() {
-    _canvas->SaveTiles();
-
-    glfwDestroyWindow(_window);
-    glfwTerminate();
-}
-
-void App::Run() {
-    while (!glfwWindowShouldClose(_window)) {
-        glfwWaitEvents();
-        Update();
-        Render();
-    }
+    _brush = std::make_unique<Brush>();
+    _brush->SetColor(glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
+    _brush->SetPressure(1.0f);
 }
 
 void App::Update() {
-    // TODO use a state machine here
-    if (_navigation.enabled) {
-        Navigate();
-    } else {
-        Paint();
-    }
+    _canvas->LazySave({0.0f, 0.0f}, _opened_file.get());
 }
 
 void App::Render() {
-    glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT);
-
-    glUseProgram(_screen_program);
-    glBindVertexArray(_screen_mesh);
-    glDrawArrays(GL_TRIANGLES, 0, 3);
-    glBindVertexArray(0);
-    glUseProgram(0);
-
-    _canvas->Render();
-
-    glfwSwapBuffers(_window);
+    _canvas->Render(_viewport.get());
+    //_brush->Render();
 }
 
-void App::KeyCallback(GLFWwindow *window, int key, int scancode, int action, int mods) {
-    App *app = (App *)glfwGetWindowUserPointer(window);
-    assert(app && "Failed to retrieve window");
-
-    // TODO: Add a shortcut handler
-    if (key == GLFW_KEY_F11 && action == GLFW_PRESS) {
-        app->ToggleFullscreen();
-    }
-
-    // Hand Tool (Pan, Zoom, Rotate)
-    if (action == GLFW_PRESS) {
-        switch (key) {
-        case GLFW_KEY_SPACE:
-            app->_navigation.enabled = true;
-            break;
-        case GLFW_KEY_RIGHT_SHIFT:
-        case GLFW_KEY_LEFT_SHIFT:
-            app->_navigation.rotating = true;
-            break;
-        case GLFW_KEY_RIGHT_CONTROL:
-        case GLFW_KEY_LEFT_CONTROL:
-            app->_navigation.zooming = true;
-            break;
-        case GLFW_KEY_S:
-            if (mods & GLFW_MOD_ALT) {
-                app->_viewport->SetZoom(1.0f);
-            }
-            break;
-        case GLFW_KEY_R:
-            if (mods & GLFW_MOD_ALT) {
-                app->_viewport->SetRotation(0.0f);
-            }
-            break;
-        case GLFW_KEY_G:
-            if (mods & GLFW_MOD_ALT) {
-                app->_viewport->SetPosition({0.0f, 0.0f});
-            }
-            break;
-        default:
-            break;
-        }
-        // spdlog::info("enabled {}\t rotating {}\t zooming {}", app->_navigation.enabled, app->_navigation.rotating,
-        //             app->_navigation.zooming);
-    }
-
-    if (action == GLFW_RELEASE) {
-        switch (key) {
-        case GLFW_KEY_SPACE:
-            app->_navigation.enabled = false;
-            break;
-        case GLFW_KEY_RIGHT_SHIFT:
-        case GLFW_KEY_LEFT_SHIFT:
-            app->_navigation.rotating = false;
-            break;
-        case GLFW_KEY_RIGHT_CONTROL:
-        case GLFW_KEY_LEFT_CONTROL:
-            app->_navigation.zooming = false;
-            break;
-        default:
-            break;
-        }
-        // spdlog::info("enabled {}\t rotating {}\t zooming {}", app->_navigation.enabled, app->_navigation.rotating,
-        //              app->_navigation.zooming);
-    }
-
-    app->Update();
-    app->Render();
+void App::Refresh() {
+    _canvas.reset();
+    _canvas = Canvas::New();
+    _brush->Refresh();
+    _program->Compile();
 }
 
-void App::CursorPosCallback(GLFWwindow *window, double xpos, double ypos) {
-    App *app = (App *)glfwGetWindowUserPointer(window);
-    assert(app && "Failed to retrieve window");
-
-    // app->Update();
-    // app->Render();
+void App::SetNavigationMode() {
+    _painting_mode = false;
+    _navigation_mode = true;
+}
+void App::SetPaintingMode() {
+    _painting_mode = true;
+    _navigation_mode = false;
 }
 
-void App::ScrollCallback(GLFWwindow *window, double xoffset, double yoffset) {
-    App *app = (App *)glfwGetWindowUserPointer(window);
-    assert(app && "Failed to retrieve window");
-
-    int state = glfwGetKey(window, GLFW_KEY_RIGHT_CONTROL) | glfwGetKey(window, GLFW_KEY_LEFT_CONTROL);
-    if (state == GLFW_PRESS) {
-        const auto hardness = app->_brush->GetHardness() + (float)yoffset * 0.01f;
-        app->_brush->SetHardness(std::max(0.0f, std::min(1.0f, hardness)));
-    } else {
-        const auto radius = app->_brush->GetRadius() + (float)yoffset * 0.5f;
-        app->_brush->SetRadiusFactor(std::max(0.0f, std::min(500.0f, radius)));
-    }
-
-    app->Update();
-    app->Render();
-}
-
-void App::ButtonCallback(GLFWwindow *window, int button, int action, int mods) {
-    App *app = (App *)glfwGetWindowUserPointer(window);
-    assert(app && "Failed to retrieve window");
-    /*
-    if (button == GLFW_MOUSE_BUTTON_LEFT) {
-        if (app->_navigation.enabled) {
-            app->_viewport->SetPivot(app->_navigation.cursor_current);
-            app->_navigation.using_hand = (action != GLFW_RELEASE);
-        } else if (action == GLFW_PRESS && !app->_painting.enabled) {
-            app->_brush->SetColor({0.0f, 0.0f, 0.0f, 255.0f});
-            app->_painting.enabled = true;
-        } else if (action == GLFW_RELEASE) {
-            app->_painting.enabled = false;
-        }
-    }
-
-    if (button == GLFW_MOUSE_BUTTON_RIGHT) {
-        if (action == GLFW_PRESS && !app->_painting.enabled) {
-            app->_brush->SetColor({255.0f, 255.0f, 255.0f, 255.0f});
-            app->_painting.enabled = true;
-        } else if (action == GLFW_RELEASE) {
-            app->_painting.enabled = false;
-        }
-    }
-
-    app->Update();
-    app->Render();*/
-}
-
-void App::FramebufferSize(GLFWwindow *window, int width, int height) {
-    App *app = (App *)glfwGetWindowUserPointer(window);
-    assert(app && "Failed to retrieve window");
-
-    app->_width = width;
-    app->_height = height;
-    glViewport(0, 0, width, height);
-
-    app->_viewport->SetSize({width, height});
-
-    app->Update();
-    app->Render();
-}
-
-void App::Paint() {
-    if (!_painting.enabled) {
-        return;
-    }
-    
-    for (size_t i = 0; i < _stylus->_packets.size(); i++) {
-        double xpos, ypos;
-        xpos = _stylus->_packets[i].pos_x;
-        ypos = _stylus->_packets[i].pos_y;
-        // glfwGetCursorPos(_window, &xpos, &ypos);
-        glm::vec4 a = glm::vec4(xpos, _height - ypos, 0.0f, 1.0f);
-        a /= glm::vec4(_viewport->_size, 1.0f, 1.0f);
-        a *= glm::vec4(2.0f, 2.0f, 0.0f, 1.0f);
-        a += glm::vec4(-1.0f, -1.0f, 0.0f, 0.0f);
-        a = glm::inverse(_viewport->_matrices._proj) * a;
-        a = glm::inverse(_viewport->_matrices._view) * a;
-
-        std::vector<glm::vec2> path = {{a.x, a.y}};
-        const glm::ivec2 coord = glm::floor(path[0] / glm::vec2(_canvas->_tiles_size));
-        _canvas->UpdateTilesProcessed(path, _brush->GetRadius());
-        _brush->SetPosition({a.x, a.y});
-        _brush->SetRadiusFactor(_stylus->_packets[i].pressure_normal);
-        _canvas->Process(_brush.get());
-    }
-
-    _stylus->ClearPackets();
-
-    // spdlog::info("({},{}) -> ({}, {}) -> ({}, {})", xpos, ypos, a.x, a.y, coord.x, coord.y);
-}
-
-void App::Navigate() {
-    if (!_navigation.enabled) {
-        return;
-    }
-
-    double xpos, ypos;
-    glfwGetCursorPos(_window, &xpos, &ypos);
-    _navigation.cursor_previous = _navigation.cursor_current;
-    _navigation.cursor_current = {xpos, ypos};
-    _navigation.delta_mouse = _navigation.cursor_current - _navigation.cursor_previous;
-    _navigation.delta_mouse.y = -_navigation.delta_mouse.y;
-
-    if (_navigation.using_hand) {
-        if (_navigation.rotating) {
-            auto rot = _viewport->GetRotation();
-            rot += (_navigation.delta_mouse.x + _navigation.delta_mouse.y) / 10.0f;
-
-            rot = fmod(rot, 360);
-            if (rot < 0)
-                rot += 360;
-
-            _viewport->SetRotation(rot);
-        } else if (_navigation.zooming) {
-            auto zoom = _viewport->GetZoom();
-            zoom = std::max(
-                0.05f,
-                std::min(1000.0f, zoom + (float)(_navigation.delta_mouse.x + _navigation.delta_mouse.y) / 666.0f));
-            _viewport->SetZoom(zoom);
-        } else {
-            // TODO: add drifting at the end, like launching a piece of paper and catching it
-            auto zoom = _viewport->GetZoom();
-            auto pos = _viewport->GetPosition();
-            pos += _navigation.delta_mouse / zoom;
-            _viewport->SetPosition(pos);
-        }
-    }
-
-    // calculate settings
-}
-
-void static OpenglErrorCallback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length,
-                                const GLchar *message, const void *userParam);
-void static GlfwErrorCallback(int error_code, const char *description);
-
-bool App::InitGLFW() {
-    if (!glfwInit()) {
-        return false;
-    }
-
-    glfwSetErrorCallback(GlfwErrorCallback);
-
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-    glfwWindowHint(GLFW_AUTO_ICONIFY, GLFW_FALSE);
-    _window = glfwCreateWindow(_width, _height, _title.c_str(), nullptr, nullptr);
-    assert(_window && "Failed to create window");
-    glfwSetWindowUserPointer(_window, this);
-
-    GLFWimage icons[3]{};
-    {
-        const auto icon_16_file = _data.open("images/icon_16x16.png");
-        std::vector<unsigned char> icon_16(icon_16_file.begin(), icon_16_file.end());
-        icons[0].pixels = stbi_load_from_memory(icon_16.data(), icon_16.size(), &icons[0].width, &icons[0].height,
-                                                nullptr, STBI_rgb_alpha);
-
-        const auto icon_32_file = _data.open("images/icon_32x32.png");
-        std::vector<unsigned char> icon_32(icon_32_file.begin(), icon_32_file.end());
-        icons[1].pixels = stbi_load_from_memory(icon_32.data(), icon_32.size(), &icons[1].width, &icons[1].height,
-                                                nullptr, STBI_rgb_alpha);
-
-        const auto icon_48_file = _data.open("images/icon_48x48.png");
-        std::vector<unsigned char> icon_48(icon_48_file.begin(), icon_48_file.end());
-        icons[2].pixels = stbi_load_from_memory(icon_48.data(), icon_48.size(), &icons[2].width, &icons[2].height,
-                                                nullptr, STBI_rgb_alpha);
-    }
-
-    glfwSetWindowIcon(_window, 3, icons);
-
-    double x, y;
-    glfwGetCursorPos(_window, &x, &y);
-    _navigation.cursor_current.x = x;
-    _navigation.cursor_current.y = y;
-    _navigation.cursor_previous.x = x;
-    _navigation.cursor_previous.y = y;
-
-    glfwSetFramebufferSizeCallback(_window, FramebufferSize);
-    glfwSetMouseButtonCallback(_window, ButtonCallback);
-    glfwSetScrollCallback(_window, ScrollCallback);
-    glfwSetCursorPosCallback(_window, CursorPosCallback);
-    glfwSetKeyCallback(_window, KeyCallback);
-
-    return true;
-}
-
-bool App::InitOpenGL() {
-    glfwMakeContextCurrent(_window);
-    gladLoadGLLoader((GLADloadproc)glfwGetProcAddress);
-
-    glfwSwapInterval(0);
-
-    glEnable(GL_DEBUG_OUTPUT);
-    glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
-    glDebugMessageCallback(OpenglErrorCallback, nullptr);
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    glEnable(GL_CULL_FACE);
-    glFrontFace(GL_CCW);
-    glCullFace(GL_BACK);
-    glDepthRange(0.0f, 1.0f);
-
-    return true;
-}
-
-void App::ToggleFullscreen() {
-    // TODO: BUG: when in fullscreen and clicking the window blink for a one frame
-    // TODO: BUG: There is still artefacting when toggle on fullscreen
-    if (!_fullscreen) {
-        // Save window size
-        _saved_window_size.maximized = glfwGetWindowAttrib(_window, GLFW_MAXIMIZED);
-        glfwGetWindowPos(_window, &_saved_window_size.xpos, &_saved_window_size.ypos);
-        glfwGetWindowSize(_window, &_saved_window_size.width, &_saved_window_size.height);
-
-        // Choose monitor
-        int monitor_count;
-        GLFWmonitor **monitors = glfwGetMonitors(&monitor_count);
-        int monitor_x{}, monitor_y{}, monitor_width{}, monitor_height{};
-        for (size_t i = 0; i < monitor_count; i++) {
-            const GLFWvidmode *mode = glfwGetVideoMode(monitors[i]);
-            monitor_height = mode->height;
-            monitor_width = mode->width;
-            glfwGetMonitorPos(monitors[i], &monitor_x, &monitor_y);
-
-            const int center_x = _saved_window_size.xpos + _saved_window_size.width / 2;
-            const int center_y = _saved_window_size.ypos + _saved_window_size.height / 2;
-
-            if (monitor_x <= center_x && center_x <= monitor_x + monitor_width && monitor_y <= center_y &&
-                center_y <= monitor_y + monitor_height) {
-                _monitor = monitors[i];
-                break;
-            }
-        }
-
-        glfwSetWindowAttrib(_window, GLFW_DECORATED, GLFW_FALSE);
-        glfwSetWindowMonitor(_window, nullptr, monitor_x, monitor_y, monitor_width, monitor_height, 0);
-
-        _fullscreen = true;
-    } else {
-        // Disable fullscreen option
-        glfwSetWindowAttrib(_window, GLFW_DECORATED, GLFW_TRUE);
-        glfwSetWindowMonitor(_window, nullptr, _saved_window_size.xpos, _saved_window_size.ypos,
-                             _saved_window_size.width, _saved_window_size.height, 0);
-
-        // Restore from _saved_window_size;
-        if (_saved_window_size.maximized) {
-            glfwMaximizeWindow(_window);
-        }
-
-        _monitor = nullptr;
-        _fullscreen = false;
-    }
-}
-
-void static OpenglErrorCallback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length,
-                                const GLchar *message, const void *userParam) {
-    // glGetString()
-    // TODO : convert this to a special logger
-    spdlog::error("Opengl: {}, {}, {}, {}, {}", source, type, severity, id, message);
-}
-
-void static GlfwErrorCallback(int error_code, const char *description) {
-    spdlog::error("GLFW: {}, {}", error_code, description);
+App *App::Get() {
+    return g_app;
 }

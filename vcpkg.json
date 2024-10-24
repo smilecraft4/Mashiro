@@ -1,13 +1,8 @@
 {
   "dependencies": [
-    "catch2",
-    "cmakerc",
     "glad",
-    "glfw3",
     "glm",
     "libpng",
-    {"name":"spdlog", "features": ["benchmark", "wchar"]},
-    "stb",
-    "libwebp"
+    "catch2"
   ]
 }

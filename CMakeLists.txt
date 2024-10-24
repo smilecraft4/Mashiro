@@ -2,22 +2,59 @@ cmake_minimum_required(VERSION 3.21)
 
 project(mashiro VERSION 0.0.1 LANGUAGES CXX)
 
-set(CMAKE_CXX_STANDARD 23)
+set(CMAKE_CXX_STANDARD 23)  
 
-find_package(spdlog CONFIG REQUIRED)
-find_package(glfw3 CONFIG REQUIRED)
 find_package(glad CONFIG REQUIRED)
 find_package(glm CONFIG REQUIRED) 
-find_package(Stb REQUIRED)
 find_package(PNG REQUIRED)
 find_package(Catch2 3 REQUIRED)
-find_package(CMakeRC CONFIG REQUIRED)
 
-add_subdirectory(data)
-add_subdirectory(src)
+add_executable(mashiro WIN32
+    src/AABB.cpp
+    src/App.cpp
+    src/Brush.cpp
+    src/Canvas.cpp  
+    src/File.cpp
+    src/Framework.cpp
+    src/Log.cpp
+    src/Main.cpp
+    src/Mashiro.rc
+    src/Preferences.cpp
+    src/Renderer.cpp
+    src/Viewport.cpp
+    src/Viewport.cpp
+    src/Window.cpp
+)
+
+target_compile_definitions(mashiro PRIVATE _UNICODE UNICODE)
+
+# Install
+target_link_libraries(mashiro PRIVATE 
+    glad::glad 
+    glm::glm
+    PNG::PNG
+)
+
+target_include_directories(mashiro PRIVATE include/)
+
+include(CTest)
 add_subdirectory(tests)
 
-# install(DIRECTORY data DESTINATION bin)
+# Define a list of files in the data directory
+file(GLOB_RECURSE DATA_FILES "${CMAKE_SOURCE_DIR}/data/*")
+
+# Custom command to copy data folder to build directory
+add_custom_command(
+    OUTPUT "${CMAKE_BINARY_DIR}/data"
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+    "${CMAKE_SOURCE_DIR}/data" "${CMAKE_BINARY_DIR}/data"
+    DEPENDS ${DATA_FILES}
+    COMMENT "Copying data folder to build directory..."
+)
+
+# Add a target to ensure that the command runs as part of the build
+add_custom_target(copy_data ALL DEPENDS "${CMAKE_BINARY_DIR}/data")
+
 
 set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE")
 include(CPack)

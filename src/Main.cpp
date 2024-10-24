@@ -1,22 +1,28 @@
+#include <stdexcept>
+#include "Framework.h"
 #include "App.h"
+#include "Log.h"
 
-#include <spdlog/spdlog.h>
-#include <cmrc/cmrc.hpp>
-#define STB_IMAGE_IMPLEMENTATION 
-#include <stb_image.h>
-#define STB_IMAGE_WRITE_IMPLEMENTATION
-#include <stb_image_write.h>
+int WINAPI wWinMain(
+	_In_ HINSTANCE hInstance,
+	_In_opt_ HINSTANCE hPrevInstance,
+	_In_ LPWSTR lpCmdLine,
+	_In_ int nShowCmd) {
+	try {
+		Log::Info(lpCmdLine);
+		App app(hInstance, nShowCmd);
+		app.Run();
+	} catch (const std::runtime_error& e) {
+		tstring err = ConvertString(e.what());
+		Log::Info(err);
+		MessageBox(nullptr, err.c_str(), TEXT("Mashiro"), MB_ICONERROR | MB_OK);
+		return -1;
+	}
 
-#define WIN32_LEAN_AND_MEAN
-#include <Windows.h>
-
-int main() {
-    App app;
-    app.Run();
-
-    return 0;
+	return 0;
 }
 
-int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine, int nCmdShow) {
-    return main();
+
+int main() {
+	return wWinMain(GetModuleHandle(NULL), NULL, GetCommandLine(), SW_NORMAL);
 }

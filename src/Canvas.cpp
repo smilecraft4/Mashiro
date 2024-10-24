@@ -1,184 +1,195 @@
 #include "Canvas.h"
-#include "App.h"
-#include "File.h"
-#include <format>
-#include <glm/gtc/type_ptr.hpp>
-#include <set>
-#include <spdlog/spdlog.h>
-#include <string>
+#include "Viewport.h"
+#include "Log.h"
+#include "Preferences.h"
 
-void Canvas::LoadFile() {
-    // clear everying
-    _tiles.clear();
-    _tiles_index.clear();
+std::vector<uint32_t> Canvas::_pixels;
+std::unique_ptr<Uniformbuffer> Canvas::_tile_ubo;
+std::unique_ptr<Program> Canvas::_program;
+std::unique_ptr<Mesh> Canvas::_mesh;
 
-    const auto tile_to_load = _app->_file->GetSavedTileLocation();
-    _tiles.reserve(tile_to_load.size());
-    for (size_t i = 0; i < tile_to_load.size(); i++) {
-        _tiles_index.emplace(tile_to_load[i], _tiles.size());
-        _tiles.push_back(Tile(this, _app->_file.get(), {tile_to_load[i].first, tile_to_load[i].second},
-                              glm::ivec2(_app->_file->GetTileResolution())));
-    }
+void Canvas::Init() {
+	_tile_ubo = Uniformbuffer::Create(TEXT("Tile Uniformbuffer"), 1, sizeof(Tile), nullptr);
+
+	_program = Program::Create(TEXT("Tile Uniformbuffer"));
+	_program->AddShader("data/tile.vert", GL_VERTEX_SHADER);
+	_program->AddShader("data/tile.frag", GL_FRAGMENT_SHADER);
+	_program->Compile();
+
+	const auto tile_resolution = Preferences::Get()->_tile_resolution;
+	const auto tile_color = Preferences::Get()->_tile_default_color;
+
+	_pixels = std::vector<uint32_t>(tile_resolution * tile_resolution, tile_color);
+
+	_mesh = Mesh::Create(TEXT("Tile Uniformbuffer"));
 }
 
-Canvas::Canvas(App *app, glm::ivec2 tiles_size) : _app(app), _tiles_size(tiles_size) {
-    // Compile shader
-    _tiles_program = glCreateProgram();
-    std::string program_name = "Tiles Program";
-    glObjectLabel(GL_PROGRAM, _tiles_program, program_name.size(), program_name.c_str());
-
-    GLuint vertex_shader = glCreateShader(GL_VERTEX_SHADER);
-    const auto canvas_vert_file = _app->_data.open("shaders/canvas.vert");
-    std::string_view canvas_vert(canvas_vert_file.begin(), canvas_vert_file.end());
-    const char *canvas_vert_source = canvas_vert.data();
-    glShaderSource(vertex_shader, 1, &canvas_vert_source, nullptr);
-    glCompileShader(vertex_shader);
-
-    GLuint fragment_shader = glCreateShader(GL_FRAGMENT_SHADER);
-    const auto canvas_frag_file = _app->_data.open("shaders/canvas.frag");
-    std::string_view canvas_frag(canvas_frag_file.begin(), canvas_frag_file.end());
-    const char *canvas_frag_source = canvas_frag.data();
-    glShaderSource(fragment_shader, 1, &canvas_frag_source, nullptr);
-    glCompileShader(fragment_shader);
-
-    glAttachShader(_tiles_program, vertex_shader);
-    glAttachShader(_tiles_program, fragment_shader);
-    glLinkProgram(_tiles_program);
-
-    GLint isLinked = 0;
-    glGetProgramiv(_tiles_program, GL_LINK_STATUS, (int *)&isLinked);
-    if (isLinked == GL_FALSE) {
-        GLint maxLength = 0;
-        glGetProgramiv(_tiles_program, GL_INFO_LOG_LENGTH, &maxLength);
-        std::vector<GLchar> infoLog(maxLength);
-        glGetProgramInfoLog(_tiles_program, maxLength, &maxLength, &infoLog[0]);
-        spdlog::critical("{}", infoLog.data());
-    }
-    assert(isLinked && "Fail to linked program");
-
-    glDeleteShader(vertex_shader);
-    glDeleteShader(fragment_shader);
-
-    // Create TileData uniform
-    glGenBuffers(1, &_tiles_ubo);
-    glBindBuffer(GL_UNIFORM_BUFFER, _tiles_ubo);
-    std::string ubo_matrices_name = "Tiles Uniform Buffer";
-    glObjectLabel(GL_BUFFER, _tiles_ubo, ubo_matrices_name.size(), ubo_matrices_name.c_str());
-    glBufferData(GL_UNIFORM_BUFFER, sizeof(Tile::TileData), nullptr, GL_STATIC_DRAW);
-    glBindBuffer(GL_UNIFORM_BUFFER, 0);
-    glBindBufferRange(GL_UNIFORM_BUFFER, 2, _tiles_ubo, 0, sizeof(Tile::TileData));
-
-    // Create vertex array
-    glGenVertexArrays(1, &_tiles_mesh); 
-    assert(_tiles_mesh && "Failed to create canvas vertex array object");
-    glBindVertexArray(_tiles_mesh);
-    std::string tiles_mesh_name = "Tiles Mesh";
-    glObjectLabel(GL_VERTEX_ARRAY, _tiles_mesh, tiles_mesh_name.size(), tiles_mesh_name.c_str());
+Canvas::Canvas() {
 }
 
-Canvas::~Canvas() {
-    glDeleteBuffers(1, &_tiles_ubo);
-    glDeleteVertexArrays(1, &_tiles_mesh);
-    glDeleteProgram(_tiles_program);
+Canvas::~Canvas() {}
+
+std::unique_ptr<Canvas> Canvas::New() {
+	auto canvas = std::make_unique<Canvas>();
+	return canvas;
 }
 
-void Canvas::Process(const Brush *brush) {
-    for (size_t i = 0; i < _tiles.size(); i++) {
-        if (_tiles[i]._active) {
-            brush->Use(&_tiles[i]);
-        }
-    }
+void Canvas::Load(glm::ivec2 coord, File* file) {
+	if (_coord_tile.contains({ coord.x, coord.y })) {
+		return;
+	}
+
+	CreateTile(coord);
+	if (file) {
+		auto pixels = file->ReadTileTexture(coord.x, coord.y);
+		_tiles_textures[_coord_tile[{ coord.x, coord.y }]].SetPixels(pixels);
+	} else {
+		_tiles_textures[_coord_tile[{ coord.x, coord.y }]].SetPixels(_pixels);
+	}
 }
 
-void Canvas::Render() {
-    CullTiles();
-    RenderTiles();
+std::unique_ptr<Canvas> Canvas::Open(File* file) {
+	auto canvas = std::make_unique<Canvas>();
+
+	for (const auto& [x, y] : file->GetSavedTileLocation()) {
+		canvas->Load({ x, y }, file);
+	}
+
+	return canvas;
 }
 
-void Canvas::SaveTiles() {
-    for (auto &tile : _tiles) {
-        if (!tile._saved) {
-            tile.Save(_app->_file.get());        
-        }
-    }
+void Canvas::Save(File* file) {
+	for (size_t i = 0; i < _tiles_saved.size(); i++) {
+		if (!_tiles_saved[i]) {
+			SaveTile(i, file);
+		}
+	}
 }
 
-void Canvas::UpdateTilesProcessed(std::vector<glm::vec2> brush_path, float range) {
-    // Retrieve where the Tool is going to work
-    // const auto tool_work_region = _app->GetToolWorkRegion() // returns the path coordinates where the Tool is going
-    // to work;
+void Canvas::LazyLoad(glm::vec2 cursor, File* file) {
+	const auto tile_resolution = Preferences::Get()->_tile_resolution;
 
-    // Find the tiles that are going to be processed
-    std::set<std::pair<int, int>> processed_id;
-    for (size_t i = 0; i < brush_path.size(); i++) {
-        // extends this path to include all tiles that are at a distance
-        for (int x = -1; x <= 1; x++) {
-            for (int y = -1; y <= 1; y++) {
-                const glm::ivec2 coord = glm::floor(brush_path[i] / glm::vec2(_tiles_size));
-                const std::pair<int, int> id = {coord.x + x, coord.y + y};
-                processed_id.insert(id);
-            }
-        }
-    }
+	// get the current cursor tile coord
+	const glm::ivec2 coord = glm::floor(cursor / glm::vec2(tile_resolution));
+	Load(coord, file);
 
-    // Load the necessary tiles if they do not exists
-    for (auto const &id : processed_id) {
-        if (!_tiles_index.contains(id)) {
-            size_t index = _tiles.size();
-            _tiles_index.emplace(id, index);
-
-            _tiles.emplace_back(Tile(this, _app->_file.get(), {id.first, id.second}, _tiles_size));
-        }
-    }
-
-    // Update tiles processing state
-    for (auto const &[id, index] : _tiles_index) {
-        if (processed_id.contains(id)) {
-            _tiles[index].SetActive(true);
-        } else {
-            _tiles[index].SetActive(false);
-        }
-    }
+	// See if the tile at tile coord + radius (AABB test ??) is loaded around the cursor
+	//	if the tile is not create see if it exist on the file
+	//	if it doesn't exist on disk create it
 }
 
-bool Canvas::GetTileIndex(glm::ivec2 position, size_t &index) {
-    const std::pair<int, int> key = {position.x, position.y};
+void Canvas::LazySave(glm::vec2 cursor, File* file) {
+	// if the cursor is not visited from a long time 
+	const auto max_save = Preferences::Get()->_lazy_save_count;
 
-    if (_tiles_index.contains(key)) {
-        index = _tiles_index[key];
-        return true;
-    } else {
-        index = SIZE_MAX;
-        return false;
-    }
+	int save_counter = 0;
+	for (size_t i = 0; i < _tiles_saved.size(); i++) {
+		if (!_tiles_saved[i] && !_tiles_processing[i] && !_tiles_visibility[i]) {
+			// SaveTile function
+			SaveTile(i, file);
+			save_counter++;
+			if (save_counter >= max_save) {
+				break;
+			}
+		}
+	}
+}
+
+void Canvas::SaveTile(size_t i, File* file) {
+	const auto x = _tiles_data[i].coord.x;
+	const auto y = _tiles_data[i].coord.y;
+	auto pixels = _tiles_textures[i].ReadPixels();
+
+	file->WriteTileTexture(x, y, pixels);
+
+	_tiles_saved[i] = true;
+}
+
+void Canvas::Refresh() {
+	_program->Compile();
+}
+
+void Canvas::Paint(Brush* brush) {
+	const auto tile_resolution = Preferences::Get()->_tile_resolution;
+	const glm::ivec2 coord = glm::floor(brush->GetPosition() / glm::vec2(tile_resolution));
+
+	for (int y = -1; y < 2; y++) {
+		for (int x = -1; x < 2; x++) {
+			Load({ coord.x + x, coord.y + y }, nullptr);
+			const auto index = _coord_tile[{ coord.x + x, coord.y + y }];
+			_tiles_processing[index] = true;
+			_tile_ubo->SetData(0, sizeof(Tile), &_tiles_data[index]);
+			brush->Paint(&_tiles_textures[index]);
+			_tiles_processing[index] = false;
+			_tiles_saved[index] = false;
+		}
+	}
+}
+
+
+void Canvas::Render(Viewport* viewport) {
+	CullTiles(viewport);
+	RenderTiles();
+}
+
+void Canvas::CreateTile(glm::ivec2 coord) {
+	if (_coord_tile.contains({ coord.x, coord.y })) {
+		Log::Trace(std::format(TEXT("Tile ({},{}) is already created"), coord.x, coord.y));
+		return;
+	}
+
+	const auto resolution = Preferences::Get()->_tile_resolution;
+
+	size_t index = _tiles_data.size();
+
+	_coord_tile.emplace(std::pair<int, int>(coord.x, coord.y), index);
+	_tiles_data.push_back(Tile(coord, 0, resolution));
+	_tiles_aabb.push_back(AABB({ 0.0f, 0.0f }, { 1.0f, 1.0f }));
+	_tiles_visibility.push_back(false);
+	_tiles_saved.push_back(false);
+	_tiles_processing.push_back(false);
+	_tiles_textures.push_back(Texture(std::format(TEXT("Tile ({},{}) Texture"), coord.x, coord.y), resolution, resolution));
+
+
+	Log::Trace(std::format(TEXT("Created Tile ({},{})"), coord.x, coord.y));
+}
+
+void Canvas::DeleteTile(glm::ivec2 coord) {
+	if (!_coord_tile.contains({ coord.x, coord.y })) {
+		Log::Trace(std::format(TEXT("Tile ({},{}) does not exist and thus cannot be deleted"), coord.x, coord.y));
+		return;
+	}
+
+	size_t index = _coord_tile[{coord.x, coord.y}];
+
+	_tiles_data.erase(_tiles_data.begin() + index);
+	_tiles_aabb.erase(_tiles_aabb.begin() + index);
+	_tiles_visibility.erase(_tiles_visibility.begin() + index);
+	_tiles_saved.erase(_tiles_saved.begin() + index);
+	_tiles_textures.erase(_tiles_textures.begin() + index);
+	_tiles_processing.erase(_tiles_processing.begin() + index);
+	_coord_tile.erase({ coord.x, coord.y });
+
+	Log::Trace(std::format(TEXT("Deleted Tile ({},{})"), coord.x, coord.y));
+}
+
+void Canvas::ReloadTile(glm::ivec2 coord) {
+	// ?? what do i do here ???
 }
 
 void Canvas::RenderTiles() {
-    glUseProgram(_tiles_program);
-    glActiveTexture(GL_TEXTURE0);
-    glBindVertexArray(_tiles_mesh);
-
-    for (auto const &tile : _tiles) {
-        tile.BindUniform();
-
-        if (tile._active) {
-            glUniform3f(glGetUniformLocation(_tiles_program, "tint"), 1.0f, 0.0f, 0.0f);
-        } else if (tile._loaded) {
-            glUniform3f(glGetUniformLocation(_tiles_program, "tint"), 0.0f, 1.0f, 0.0f);
-        } else {
-            glUniform3f(glGetUniformLocation(_tiles_program, "tint"), 0.0f, 0.0f, 1.0f);
-        }
-
-        glBindTexture(GL_TEXTURE_2D, tile._texture_ID);
-        glDrawArrays(GL_TRIANGLES, 0, 6);
-    }
+	_program->Bind();
+	for (size_t i = 0; i < _tiles_data.size(); i++) {
+		if (_tiles_visibility[i]) {
+			_tile_ubo->SetData(0, sizeof(Tile), &_tiles_data[i]);
+			_tiles_textures[i].Bind(0);
+			_mesh->Render(GL_TRIANGLES, 6);
+		}
+	}
 }
-void Canvas::CullTiles() {
-    for (auto const &tile : _tiles) {
-        // If the viewport AABB does the AABB of this tile
-        // set this tile has not culled
-        // otherwise set it as culled
 
-        // unload the tile tile.Unload();
-    }
+void Canvas::CullTiles(Viewport* viewport) {
+	for (size_t i = 0; i < _tiles_aabb.size(); i++) {
+		_tiles_visibility[i] = viewport->IsVisible(_tiles_aabb[i]);
+	}
 }

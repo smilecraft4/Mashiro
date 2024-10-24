@@ -1,8 +1,6 @@
-# IDE specific
-.vs/
 .vscode/
+.vs/
 .idea/
 
-# Generated data
 build/
 install/

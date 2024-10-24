@@ -1,0 +1,50 @@
+#version 430 core
+
+layout(std140, binding = 0) uniform Matrices {
+	mat4 view;
+	mat4 proj;
+} viewport;
+
+layout(std140, binding = 1) uniform TileData {
+	ivec2 coord;
+	uint layer;
+	uint size;
+} tile_data;
+
+struct BrushData {
+	float pressure;
+	float tilt;
+	float orientation;
+	float rotation;
+	vec2 position;
+	vec4 color;
+};
+
+layout(std140, binding = 2) uniform SingleBrushData {	
+	BrushData brush_data;
+};
+
+// Process the line rendering here using an SSBO or another uniform buffer
+layout(std140, binding = 3) uniform Data {	
+	BrushData brushes_datas[64];
+};
+uniform uint brush_datas_count;
+layout(binding = 1) uniform sampler2D brush_alpha;
+
+// TODO: use a textureArray and edit the texture that will be affected
+layout(binding = 0, rgba8) uniform image2D tile_tex;
+
+layout(local_size_x = 16, local_size_y = 16, local_size_z = 1) in;
+void main() {
+	const ivec2 tile_tex_pos = ivec2(gl_GlobalInvocationID.xy);
+	const vec2 pixel_pos = tile_data.coord * int(tile_data.size)+ tile_tex_pos;
+
+	for (uint i = 0; i < brush_datas_count; i++) { 
+		vec4 pixel = imageLoad(tile_tex, tile_tex_pos);
+		const float falloff = 1.0 - step(4.5 * brushes_datas[i].pressure , distance(brushes_datas[i].position, pixel_pos));
+		pixel = mix(pixel, brushes_datas[i].color, falloff * brushes_datas[i].color.a);
+		imageStore(tile_tex, tile_tex_pos, pixel);
+	}
+
+}
+
