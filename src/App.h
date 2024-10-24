@@ -11,7 +11,6 @@
 #include "Canvas.h"
 #include "File.h"
 #include "Settings.h"
-#include "Stylus.h"
 #include "Viewport.h"
 
 class App {
@@ -30,13 +29,11 @@ class App {
     cmrc::embedded_filesystem _data;
     std::unique_ptr<Viewport> _viewport;
     std::unique_ptr<Brush> _brush;
-    std::unique_ptr<Stylus> _stylus;
     std::unique_ptr<Canvas> _canvas;
     std::unique_ptr<File> _file;
     std::unique_ptr<Settings> _settings;
     GLFWwindow *_window;
 
-  protected:
     bool InitGLFW();
     bool InitOpenGL();
 
@@ -52,7 +49,6 @@ class App {
     static void ButtonCallback(GLFWwindow *window, int button, int action, int mods);
     static void FramebufferSize(GLFWwindow *window, int width, int height);
 
-  private:
     int _width;
     int _height;
     std::string _title;

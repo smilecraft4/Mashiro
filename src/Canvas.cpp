@@ -69,7 +69,7 @@ Canvas::Canvas(App *app, glm::ivec2 tiles_size) : _app(app), _tiles_size(tiles_s
     glBindBufferRange(GL_UNIFORM_BUFFER, 2, _tiles_ubo, 0, sizeof(Tile::TileData));
 
     // Create vertex array
-    glGenVertexArrays(1, &_tiles_mesh);
+    glGenVertexArrays(1, &_tiles_mesh); 
     assert(_tiles_mesh && "Failed to create canvas vertex array object");
     glBindVertexArray(_tiles_mesh);
     std::string tiles_mesh_name = "Tiles Mesh";

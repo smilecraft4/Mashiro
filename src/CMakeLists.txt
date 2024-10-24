@@ -13,9 +13,9 @@ target_sources(mashiro PRIVATE
     "Viewport.h" "Viewport.cpp"
     "Brush.h" "Brush.cpp" 
     "Tile.h" "Tile.cpp" 
-    "Stylus.h" "Stylus.cpp"
     "File.cpp" "File.h"
- "Settings.h" "Settings.cpp")
+    "Settings.h" "Settings.cpp"
+)
 
 # Install
 target_link_libraries(mashiro PRIVATE 

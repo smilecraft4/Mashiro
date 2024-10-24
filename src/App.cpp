@@ -8,8 +8,6 @@
 CMRC_DECLARE(mashiro);
 
 App::App() : _data(cmrc::mashiro::get_filesystem()), _painting{}, _navigation{} {
-
-    HRESULT hr = CoInitialize(NULL);
     // TODO: load from last openned LoadLastFilePreferences();
     _width = 800;
     _height = 600;
@@ -63,7 +61,6 @@ App::App() : _data(cmrc::mashiro::get_filesystem()), _painting{}, _navigation{} 
     std::string screen_mesh_name = "Screen Mesh";
     glObjectLabel(GL_VERTEX_ARRAY, _screen_mesh, screen_mesh_name.size(), screen_mesh_name.c_str());
 
-
     _canvas = std::make_unique<Canvas>(this, glm::ivec2(_settings->_tile_resolution, _settings->_tile_resolution));
 
     auto file = File::Find("./");
@@ -85,8 +82,6 @@ App::App() : _data(cmrc::mashiro::get_filesystem()), _painting{}, _navigation{} 
 
     _brush->SetColor({0.0f, 255.0f, 0.0f, 255.0f});
     _brush->SetPosition({0, 0});
-
-    _stylus = std::make_unique<Stylus>(this);
 }
 
 App::~App() {
@@ -94,7 +89,6 @@ App::~App() {
 
     glfwDestroyWindow(_window);
     glfwTerminate();
-    CoUninitialize();
 }
 
 void App::Run() {
@@ -106,8 +100,12 @@ void App::Run() {
 }
 
 void App::Update() {
-    Paint();
-    Navigate();
+    // TODO use a state machine here
+    if (_navigation.enabled) {
+        Navigate();
+    } else {
+        Paint();
+    }
 }
 
 void App::Render() {
@@ -198,8 +196,8 @@ void App::CursorPosCallback(GLFWwindow *window, double xpos, double ypos) {
     App *app = (App *)glfwGetWindowUserPointer(window);
     assert(app && "Failed to retrieve window");
 
-    app->Update();
-    app->Render();
+    // app->Update();
+    // app->Render();
 }
 
 void App::ScrollCallback(GLFWwindow *window, double xoffset, double yoffset) {
@@ -212,7 +210,7 @@ void App::ScrollCallback(GLFWwindow *window, double xoffset, double yoffset) {
         app->_brush->SetHardness(std::max(0.0f, std::min(1.0f, hardness)));
     } else {
         const auto radius = app->_brush->GetRadius() + (float)yoffset * 0.5f;
-        app->_brush->SetRadius(std::max(0.0f, std::min(500.0f, radius)));
+        app->_brush->SetRadiusFactor(std::max(0.0f, std::min(500.0f, radius)));
     }
 
     app->Update();
@@ -222,7 +220,7 @@ void App::ScrollCallback(GLFWwindow *window, double xoffset, double yoffset) {
 void App::ButtonCallback(GLFWwindow *window, int button, int action, int mods) {
     App *app = (App *)glfwGetWindowUserPointer(window);
     assert(app && "Failed to retrieve window");
-
+    /*
     if (button == GLFW_MOUSE_BUTTON_LEFT) {
         if (app->_navigation.enabled) {
             app->_viewport->SetPivot(app->_navigation.cursor_current);
@@ -245,7 +243,7 @@ void App::ButtonCallback(GLFWwindow *window, int button, int action, int mods) {
     }
 
     app->Update();
-    app->Render();
+    app->Render();*/
 }
 
 void App::FramebufferSize(GLFWwindow *window, int width, int height) {
@@ -266,22 +264,30 @@ void App::Paint() {
     if (!_painting.enabled) {
         return;
     }
+    
+    for (size_t i = 0; i < _stylus->_packets.size(); i++) {
+        double xpos, ypos;
+        xpos = _stylus->_packets[i].pos_x;
+        ypos = _stylus->_packets[i].pos_y;
+        // glfwGetCursorPos(_window, &xpos, &ypos);
+        glm::vec4 a = glm::vec4(xpos, _height - ypos, 0.0f, 1.0f);
+        a /= glm::vec4(_viewport->_size, 1.0f, 1.0f);
+        a *= glm::vec4(2.0f, 2.0f, 0.0f, 1.0f);
+        a += glm::vec4(-1.0f, -1.0f, 0.0f, 0.0f);
+        a = glm::inverse(_viewport->_matrices._proj) * a;
+        a = glm::inverse(_viewport->_matrices._view) * a;
 
-    double xpos, ypos;
-    glfwGetCursorPos(_window, &xpos, &ypos);
-    glm::vec4 a = glm::vec4(xpos, _height - ypos, 0.0f, 1.0f);
-    a /= glm::vec4(_viewport->_size, 1.0f, 1.0f);
-    a *= glm::vec4(2.0f, 2.0f, 0.0f, 1.0f);
-    a += glm::vec4(-1.0f, -1.0f, 0.0f, 0.0f);
-    a = glm::inverse(_viewport->_matrices._proj) * a;
-    a = glm::inverse(_viewport->_matrices._view) * a;
+        std::vector<glm::vec2> path = {{a.x, a.y}};
+        const glm::ivec2 coord = glm::floor(path[0] / glm::vec2(_canvas->_tiles_size));
+        _canvas->UpdateTilesProcessed(path, _brush->GetRadius());
+        _brush->SetPosition({a.x, a.y});
+        _brush->SetRadiusFactor(_stylus->_packets[i].pressure_normal);
+        _canvas->Process(_brush.get());
+    }
 
-    std::vector<glm::vec2> brush_path{{a.x, a.y}};
-    const glm::ivec2 coord = glm::floor(brush_path[0] / glm::vec2(_canvas->_tiles_size));
+    _stylus->ClearPackets();
+
     // spdlog::info("({},{}) -> ({}, {}) -> ({}, {})", xpos, ypos, a.x, a.y, coord.x, coord.y);
-    _canvas->UpdateTilesProcessed(brush_path, _brush->GetRadius());
-    _brush->SetPosition(a);
-    _canvas->Process(_brush.get());
 }
 
 void App::Navigate() {

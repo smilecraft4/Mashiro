@@ -25,6 +25,7 @@ class Brush {
     void SetColor(glm::vec4 color, bool update = true);
     void SetHardness(float hardness, bool update = true);
     void SetRadius(float radius, bool update = true);
+    void SetRadiusFactor(float factor);
 
     float GetRadius() const;
     float GetHardness() const;
@@ -33,9 +34,6 @@ class Brush {
 
     // void Undo();
     // void Redo();
-
-  private:
-    const App *_app;
 
     struct BrushParameters {
         glm::vec2 _position;
@@ -46,6 +44,12 @@ class Brush {
         float _hardness;
         float _padding[1];
     } _brush_parameters;
+
+  private:
+    const App *_app;
+
+    float _radius = 5.0f;
+    float _radius_factor = 1.0f;
 
     glm::ivec3 _program_work_group_size;
     GLuint _program;

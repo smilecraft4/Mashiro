@@ -124,7 +124,7 @@ void Brush::SetHardness(float hardness, bool update) {
 
 void Brush::SetRadius(float radius, bool update) {
     spdlog::info("Set brush radius to: {:.2f}px", radius);
-    _brush_parameters._radius = radius;
+    _brush_parameters._radius = _radius * _radius_factor;
     if (update) {
         glBindBuffer(GL_UNIFORM_BUFFER, _ubo_brush_parameters);
         glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(BrushParameters), &_brush_parameters);
@@ -132,8 +132,16 @@ void Brush::SetRadius(float radius, bool update) {
     }
 }
 
+void Brush::SetRadiusFactor(float factor) {
+    _radius_factor = factor;
+    _brush_parameters._radius = _radius * _radius_factor;
+    glBindBuffer(GL_UNIFORM_BUFFER, _ubo_brush_parameters);
+    glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(BrushParameters), &_brush_parameters);
+    glBindBuffer(GL_UNIFORM_BUFFER, 0);
+}
+
 float Brush::GetRadius() const {
-    return _brush_parameters._radius;
+    return _brush_parameters._radius / _radius_factor;
 }
 
 float Brush::GetHardness() const {
