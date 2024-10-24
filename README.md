@@ -14,26 +14,28 @@ Mashiro is born because I rely too much on the speed of the Ctrl-Z to draw. If i
 
 ### 👑 Version 1.0.0
 
-- ✔ Opening
-- ✔ Simple canvas
-- ❌ Hand (Rotate, Pan, Zoom)
+- ❌ Open
+- ✔ Saving
+- ❌ Save AS
+- ✔ Pan
 - ✔ Brush
   - ✔ Pen
-  - ✔ Eraser
+  - ❌ Eraser
 - ❌ Toolbar
-- ❌ Infinite Canvas
-- ❌ Shortcut
+-  ✔ Infinite Canvas
+-  ✔ Shortcut
 - ❌ Color wheel
 - ❌ Color picker
-- ❌ File format (.mashio)
-- ❌ Saving/Opening
-- ❌ Settings/Preferences
+- ✔ File format (.msh)
 
 
 ### 👑 Version 1.1.0 (*￣3￣)╭
-- ❌ Undo/Redo 
+- ❌ UI
+- ❌ Undo/Redo
+- ❌ Layers
 - ❌ Brush customization (Alpha, Curves, Smoothing, etc..)
 
 ## 🛠 Technical Info
-(╯▔皿▔)╯ ~~I use D3D11 with Win32.. for now... I think~~ 
-I use glfw and opengl
+(╯▔皿▔)╯ ~~I use D3D11 with Win32.. for now... I think~~   
+(´。＿。｀) ~~I use glfw and opengl~~  
+I use glfw and opengl  
