@@ -1,14 +1,18 @@
 #include <catch2/catch_test_macros.hpp>
 
 #define WIN32_LEAN_AND_MEAN
+#include <ShObjIdl.h>
 #include <Windows.h>
 #include <filesystem>
 #include <format>
-#include <shobjidl.h>
 #include <string>
 #include <windowsx.h>
 
 static COMDLG_FILTERSPEC rgSpec[] = {{TEXT("Mashiro files"), TEXT("*.msh")}};
+
+static std::filesystem::path SaveAsDialog(std::filesystem::path directory = "./",
+                                          std::filesystem::path filename = "unsaved.msh");
+static std::filesystem::path OpenDialog(std::filesystem::path directory = "./");
 
 class App {
   public:
@@ -95,7 +99,8 @@ class App {
 
         // File::Open(path)
         filename = path;
-        MessageBox(hwnd, std::format(TEXT("Openned file \"{}\""), filename.wstring()).c_str(), TEXT("Open test"), MB_OK);
+        MessageBox(hwnd, std::format(TEXT("Openned file \"{}\""), filename.wstring()).c_str(), TEXT("Open test"),
+                   MB_OK);
         openned = true;
         saved = false;
         named = true;
@@ -116,20 +121,74 @@ class App {
     }
 
   private:
-    std::filesystem::path SaveAsDialog() {
-        return "";
-    }
-
-    std::filesystem::path OpenDialog() {
-        return "";
-    }
-
     HWND hwnd;
     std::filesystem::path filename;
     bool openned;
     bool saved;
     bool named;
 };
+
+std::filesystem::path SaveAsDialog(std::filesystem::path directory, std::filesystem::path filename) {
+    const auto filename = directory / filename;
+    return "";
+}
+
+std::filesystem::path OpenDialog(std::filesystem::path directory) {
+    if (!std::filesystem::exists(directory) || !std::filesystem::is_directory(directory)) {
+        throw new std::runtime_error("Directory provided as default path for OpenDialog does not exists");
+    }
+
+    // Make sure the path is absolute
+    if (directory.is_absolute()) {
+        directory = std::filesystem::absolute(directory);
+    }
+
+    std::filesystem::path filename;
+
+    IFileDialog *pfd = NULL;
+    HRESULT hr = CoCreateInstance(CLSID_FileOpenDialog, NULL, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&pfd));
+
+    // Set the options on the dialog.
+    DWORD dwFlags;
+
+    // Before setting, always get the options first in order
+    // not to override existing options.
+    hr = pfd->GetOptions(&dwFlags);
+
+    // In this case, get shell items only for file system items.
+    hr = pfd->SetOptions(dwFlags | FOS_FORCEFILESYSTEM);
+
+    // Set the file types to display only.
+    // Notice that this is a 1-based array.
+    hr = pfd->SetFileTypes(ARRAYSIZE(rgSpec), rgSpec);
+
+    // Set the selected file type index to Word Docs for this example.
+    hr = pfd->SetFileTypeIndex(0);
+
+    // Set the default extension to be ".doc" file.
+    hr = pfd->SetDefaultExtension(L"msh");
+    IShellItem *psiResult;
+
+    IShellItem *folder;
+    hr = SHCreateItemFromParsingName(directory.wstring().c_str(), NULL, IID_PPV_ARGS(&folder));
+    hr = pfd->SetDefaultFolder(folder);
+
+    hr = pfd->Show(NULL);
+
+    IShellItem *psiResult;
+    hr = pfd->GetResult(&psiResult);
+
+    PWSTR pszFilePath = NULL;
+    hr = psiResult->GetDisplayName(SIGDN_FILESYSPATH, &pszFilePath);
+
+    filename = std::filesystem::path(pszFilePath);
+
+    psiResult->Release();
+
+    pfd->Release();
+
+    return filename;
+}
 
 // TODO: All the scenerios with expected outcomes !
 
