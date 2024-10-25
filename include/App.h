@@ -28,6 +28,8 @@ class App final {
 
     bool HasAttachedDisplayTablet();
 
+    //TODO: Change this from a app like this to a window
+
     App(HINSTANCE instance, int show_cmd);
     ~App() noexcept;
 
@@ -57,6 +59,7 @@ class App final {
     std::unique_ptr<File> _opened_file;
     std::unique_ptr<Canvas> _canvas;
     std::unique_ptr<Brush> _brush;
+    std::unique_ptr<Framebuffer> _framebuffer;
 
     // std::unique_ptr<Framebuffer> _framebuffer;
     std::unique_ptr<Uniformbuffer> _app_uniformbuffer;
@@ -67,6 +70,7 @@ class App final {
     bool _painting_mode;
     bool _navigation_mode;
 
+    // TODO: Create a class to handle this 
     typedef struct {
         int maxPressure;
         COLORREF penColor;

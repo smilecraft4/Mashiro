@@ -30,7 +30,7 @@ using tstring = std::string;
 #define PACKETMODE	PK_BUTTONS
 #include "pktdef.h"
 
-#define MAX_PACKETS	20
+#define MAX_PACKETS	40
 
 #ifdef UNICODE 
 #define ConvertString ConvertStringW

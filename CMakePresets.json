@@ -39,7 +39,7 @@
           "name": "default",
           "configurePreset": "windows-release",
           "generators": [
-              "ZIP"
+              "NSIS"
           ]
       }
   ]

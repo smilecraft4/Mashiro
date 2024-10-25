@@ -416,6 +416,7 @@ void App::Init(HWND hwnd) {
 
     Canvas::Init();
     Brush::Init();
+    Framebuffer::Init();
 
     if (std::filesystem::exists("./mashiro.msh")) {
         _opened_file = File::Open("./mashiro.msh");
@@ -423,6 +424,7 @@ void App::Init(HWND hwnd) {
         _opened_file = File::New("./mashiro.msh");
     }
 
+    _framebuffer = Framebuffer::Create(TEXT("Canvas framebuffer"), 800, 600);
     _canvas = Canvas::Open(_opened_file.get());
 
     _brush = std::make_unique<Brush>();
@@ -435,7 +437,19 @@ void App::Update() {
 }
 
 void App::Render() {
+    _framebuffer->Bind();
+
+    glClearColor(1.0f, 1.0f, 1.0f, 1.0f); 
+    glClear(GL_COLOR_BUFFER_BIT);
     _canvas->Render(_viewport.get());
+
+    _framebuffer->Unbind();
+
+
+    glClearColor(1.0f, 1.0f, 1.0f, 1.0f); 
+    glClear(GL_COLOR_BUFFER_BIT);
+    _framebuffer->Render();
+    
     //_brush->Render();
 }
 

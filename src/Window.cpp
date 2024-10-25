@@ -83,6 +83,14 @@ LRESULT Window::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
     // Accelerators (Shortcuts)
     if (msg == WM_COMMAND) {
         switch (LOWORD(wparam)) {
+        case ID_QUIT: {
+            if (MessageBox(hwnd, TEXT("Save file"), TEXT("Mashiro"), MB_OKCANCEL) == MB_OK) {
+                app->_canvas->Save(app->_opened_file.get());
+                app->_opened_file->Save();
+            }
+            DestroyWindow(hwnd);
+        }
+            return 0;
         case ID_TOGGLE_FULLSCREEN: {
             ToggleFullscren();
         }
@@ -467,6 +475,7 @@ void Window::Resize(int width, int height) {
 
     glViewport(0, 0, _width, _height);
     App::Get()->_viewport->SetSize(glm::ivec2(width, height));
+    App::Get()->_framebuffer->Resize(width, height);
 }
 
 void Window::Move(int x, int y) {
