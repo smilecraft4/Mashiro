@@ -11,6 +11,10 @@
 #include "Viewport.h"
 #include "Window.h"
 
+// TODO: Change this from a app like this to a window
+// TODO: Create wrapper for Wintab
+// FIXME: Allow the mouse to be used
+
 class App final {
   public:
     static App *Get();
@@ -28,12 +32,16 @@ class App final {
 
     bool HasAttachedDisplayTablet();
 
-    //TODO: Change this from a app like this to a window
-
     App(HINSTANCE instance, int show_cmd);
     ~App() noexcept;
 
     void Run() const;
+
+    bool Save();
+    bool SaveAs();
+    bool Open();
+    bool New();
+    void Exit();
 
     void EnableBrush(bool enable);
 
@@ -56,12 +64,13 @@ class App final {
     std::unique_ptr<Window> _window;
     std::unique_ptr<Preferences> _preferences;
     std::unique_ptr<Viewport> _viewport;
-    std::unique_ptr<File> _opened_file;
+
+    std::unique_ptr<File> _file;
     std::unique_ptr<Canvas> _canvas;
+
     std::unique_ptr<Brush> _brush;
     std::unique_ptr<Framebuffer> _framebuffer;
 
-    // std::unique_ptr<Framebuffer> _framebuffer;
     std::unique_ptr<Uniformbuffer> _app_uniformbuffer;
     std::unique_ptr<Mesh> _mesh;
     std::unique_ptr<Texture> _texture;
@@ -70,7 +79,7 @@ class App final {
     bool _painting_mode;
     bool _navigation_mode;
 
-    // TODO: Create a class to handle this 
+    // TODO: Create a class to handle this
     typedef struct {
         int maxPressure;
         COLORREF penColor;

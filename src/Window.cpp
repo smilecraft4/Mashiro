@@ -83,26 +83,32 @@ LRESULT Window::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
     // Accelerators (Shortcuts)
     if (msg == WM_COMMAND) {
         switch (LOWORD(wparam)) {
-        case ID_QUIT: {
-            if (MessageBox(hwnd, TEXT("Save file"), TEXT("Mashiro"), MB_OKCANCEL) == MB_OK) {
-                app->_canvas->Save(app->_opened_file.get());
-                app->_opened_file->Save();
-            }
-            DestroyWindow(hwnd);
-        }
+        case ID_EXIT: {
+            app->Exit();
             return 0;
+        }
+        case ID_SAVE: {
+            app->Save();
+            return 0;
+        }
+        case ID_SAVE_AS: {
+            app->SaveAs();
+            return 0;
+        }
+        case ID_OPEN: {
+            app->Open();
+            return 0;
+        }
+        case ID_NEW: {
+            app->New();
+            return 0;
+        }
         case ID_TOGGLE_FULLSCREEN: {
             ToggleFullscren();
         }
             return 0;
         case ID_REFRESH: {
             app->Refresh();
-        }
-            return 0;
-        case ID_SAVE: {
-            app->_canvas->Save(app->_opened_file.get());
-            app->_opened_file->Save();
-            Log::Info(TEXT("Saved file"));
         }
             return 0;
         case ID_MOVE: {
@@ -261,6 +267,9 @@ LRESULT Window::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
     case WM_ERASEBKGND:
         return TRUE;
     case WM_PAINT: {
+        if (!app->_file || !app->_canvas) {
+            break;
+        }
         if (prsNew > 0) {
             auto viewport = App::Get()->_viewport.get();
             auto brush = App::Get()->_brush.get();
@@ -406,9 +415,10 @@ LRESULT Window::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
 
     switch (msg) {
     case WM_CREATE: {
+        _hwnd = hwnd;
         Create();
-    }
         return 0;
+    }
     default:
         break;
     }
@@ -495,6 +505,7 @@ void Window::Render() {
     }
 }
 
+// FIXME: need to be heavely bugfixed and tweaked for better behaviour
 // https://chromium.googlesource.com/chromium/src/+/refs/heads/main/ui/views/win/fullscreen_handler.cc
 void Window::ToggleFullscren() noexcept {
     if (!_fullscreen) {
