@@ -113,14 +113,6 @@ App::App(HINSTANCE instance, int show_cmd) : _instance(instance), _show_cmd(show
     // InitSettings
     _window_class = std::make_unique<WindowClass>(_instance, TEXT("Mashiro"));
     _window = std::make_unique<Window>(800, 600, TEXT("Mashiro"));
-
-    if (std::filesystem::exists("./mashiro.msh")) {
-        _file = File::Open("./mashiro.msh");
-        _canvas = Canvas::Open(_file.get());
-        SetWindowText(_window->Hwnd(), _file->GetDisplayName().c_str());
-    } else {
-        New();
-    }
 }
 
 App::~App() noexcept {
@@ -443,7 +435,10 @@ void App::Render() {
 
     glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
-    _canvas->Render(_viewport.get());
+
+    if (_canvas) {
+        _canvas->Render(_viewport.get());
+    }
 
     _framebuffer->Unbind();
 
@@ -539,7 +534,7 @@ std::optional<std::filesystem::path> OpenDialog(std::filesystem::path directory)
     hr = pfd->SetDefaultFolder(folder);
 
     hr = pfd->Show(App::Get()->_window->Hwnd());
-    if (HRESULT_FROM_WIN32(hr) == ERROR_CANCELLED) {
+    if (hr == HRESULT_FROM_WIN32(ERROR_CANCELLED)) {
         return {};
     }
 
@@ -602,54 +597,59 @@ bool App::SaveAs() {
 }
 
 bool App::Open() {
-    if (!_file->IsSaved() || !_canvas->IsSaved()) {
-        const auto result =
-            MessageBox(_window->Hwnd(), std::format(TEXT("Save {}"), _file->GetFilename().wstring()).c_str(),
-                       TEXT("Mashiro"), MB_YESNOCANCEL);
-        switch (result) {
-        case IDYES:
-            Save();
-            break;
-        case IDNO:
-            break;
-        case IDCANCEL:
-            return false;
+    if (_file) {
+        if (!_file->IsSaved() || !_canvas->IsSaved()) {
+            const auto result =
+                MessageBox(_window->Hwnd(), std::format(TEXT("Save {}"), _file->GetFilename().wstring()).c_str(),
+                           TEXT("Mashiro"), MB_YESNOCANCEL);
+            switch (result) {
+            case IDYES:
+                Save();
+                break;
+            case IDNO:
+                break;
+            case IDCANCEL:
+                return false;
+            }
         }
     }
-
-    _canvas.release();
-    _file.release();
 
     const auto path = OpenDialog("./");
     if (!path.has_value()) {
         return false;
     }
 
+    _canvas.release();
+    _file.release();
+
     _file = File::Open(path.value());
     _canvas = Canvas::Open(_file.get());
 
     SetWindowText(_window->Hwnd(), _file->GetDisplayName().c_str());
+
     _window->Render();
     return true;
 }
 
 bool App::New() {
-    if (!_file->IsSaved() || !_canvas->IsSaved()) {
-        const auto result =
-            MessageBox(_window->Hwnd(), std::format(TEXT("Save {}"), _file->GetFilename().wstring()).c_str(),
-                       TEXT("Mashiro"), MB_YESNOCANCEL);
-        switch (result) {
-        case IDYES: {
-            const auto result = Save();
-            if (!result) {
+    if (_file) {
+        if (!_file->IsSaved() || !_canvas->IsSaved()) {
+            const auto result =
+                MessageBox(_window->Hwnd(), std::format(TEXT("Save {}"), _file->GetFilename().wstring()).c_str(),
+                           TEXT("Mashiro"), MB_YESNOCANCEL);
+            switch (result) {
+            case IDYES: {
+                const auto result = Save();
+                if (!result) {
+                    return false;
+                }
+                break;
+            }
+            case IDNO:
+                break;
+            case IDCANCEL:
                 return false;
             }
-            break;
-        }
-        case IDNO:
-            break;
-        case IDCANCEL:
-            return false;
         }
     }
 
@@ -667,22 +667,24 @@ bool App::New() {
 }
 
 void App::Exit() {
-    if (!_file->IsSaved() || !_canvas->IsSaved()) {
-        const auto result =
-            MessageBox(_window->Hwnd(), std::format(TEXT("Save {}"), _file->GetFilename().wstring()).c_str(),
-                       TEXT("Mashiro"), MB_YESNOCANCEL);
-        switch (result) {
-        case IDYES: {
-            const auto result = Save();
-            if (!result) {
+    if (_file) {
+        if (!_file->IsSaved() || !_canvas->IsSaved()) {
+            const auto result =
+                MessageBox(_window->Hwnd(), std::format(TEXT("Save {}"), _file->GetFilename().wstring()).c_str(),
+                           TEXT("Mashiro"), MB_YESNOCANCEL);
+            switch (result) {
+            case IDYES: {
+                const auto result = Save();
+                if (!result) {
+                    return;
+                }
+                break;
+            }
+            case IDNO:
+                break;
+            case IDCANCEL:
                 return;
             }
-            break;
-        }
-        case IDNO:
-            break;
-        case IDCANCEL:
-            return;
         }
     }
 
