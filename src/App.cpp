@@ -599,9 +599,10 @@ bool App::SaveAs() {
 bool App::Open() {
     if (_file) {
         if (!_file->IsSaved() || !_canvas->IsSaved()) {
-            const auto result =
-                MessageBox(_window->Hwnd(), std::format(TEXT("Save {}"), _file->GetFilename().wstring()).c_str(),
-                           TEXT("Mashiro"), MB_YESNOCANCEL);
+            int result;
+            TaskDialog(_window->Hwnd(), _instance, TEXT("Mashiro"),
+                       std::format(TEXT("Save {}"), _file->GetFilename().wstring()).c_str(), TEXT("dsqdqs"),
+                       TDCBF_YES_BUTTON | TDCBF_NO_BUTTON | TDCBF_CANCEL_BUTTON, TD_WARNING_ICON, &result);
             switch (result) {
             case IDYES:
                 Save();
@@ -634,9 +635,10 @@ bool App::Open() {
 bool App::New() {
     if (_file) {
         if (!_file->IsSaved() || !_canvas->IsSaved()) {
-            const auto result =
-                MessageBox(_window->Hwnd(), std::format(TEXT("Save {}"), _file->GetFilename().wstring()).c_str(),
-                           TEXT("Mashiro"), MB_YESNOCANCEL);
+            int result;
+            TaskDialog(_window->Hwnd(), _instance, TEXT("Mashiro"),
+                       std::format(TEXT("Save {}"), _file->GetFilename().wstring()).c_str(), TEXT("dsqdqs"),
+                       TDCBF_YES_BUTTON | TDCBF_NO_BUTTON | TDCBF_CANCEL_BUTTON, TD_WARNING_ICON, &result);
             switch (result) {
             case IDYES: {
                 const auto result = Save();
@@ -669,9 +671,10 @@ bool App::New() {
 void App::Exit() {
     if (_file) {
         if (!_file->IsSaved() || !_canvas->IsSaved()) {
-            const auto result =
-                MessageBox(_window->Hwnd(), std::format(TEXT("Save {}"), _file->GetFilename().wstring()).c_str(),
-                           TEXT("Mashiro"), MB_YESNOCANCEL);
+            int result;
+            TaskDialog(_window->Hwnd(), _instance, TEXT("Mashiro"),
+                       std::format(TEXT("Save {}"), _file->GetFilename().wstring()).c_str(), TEXT("dsqdqs"),
+                       TDCBF_YES_BUTTON | TDCBF_NO_BUTTON | TDCBF_CANCEL_BUTTON, TD_WARNING_ICON, &result);
             switch (result) {
             case IDYES: {
                 const auto result = Save();

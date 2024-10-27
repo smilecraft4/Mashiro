@@ -2,7 +2,6 @@ include(Catch)
 
 add_executable(mashiro-test
     Dummy.cpp
-    Prompts.cpp
 )
 
 target_compile_definitions(mashiro-test PRIVATE _UNICODE UNICODE)

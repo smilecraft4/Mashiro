@@ -33,6 +33,7 @@ Canvas::~Canvas() {
 
 std::unique_ptr<Canvas> Canvas::New() {
     auto canvas = std::make_unique<Canvas>();
+    canvas->_saved = true;
     return canvas;
 }
 

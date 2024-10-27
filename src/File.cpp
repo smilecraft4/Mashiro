@@ -154,7 +154,7 @@ std::unique_ptr<File> File::New(std::filesystem::path filename) {
     auto file = std::make_unique<File>();
 
     file->Rename(filename);
-    file->_saved = false;
+    file->_saved = true;
     file->_new = true;
 
     return file;

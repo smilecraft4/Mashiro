@@ -30,6 +30,7 @@ add_executable(mashiro WIN32
     src/Viewport.cpp
     src/Viewport.cpp
     src/Window.cpp
+    src/mashiro.exe.manifest
 )
 
 target_compile_definitions(mashiro PRIVATE _UNICODE UNICODE)
