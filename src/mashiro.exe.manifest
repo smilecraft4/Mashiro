@@ -3,10 +3,10 @@
 <assemblyIdentity
     version="0.0.2.0"
     processorArchitecture="*"
-    name="smilecraft00.mashiro.mashiro"
+    name="smilecraft00.mashiro"
     type="win32"
 />
-<description>Your application description here.</description>
+<description>Mashiro is a simple infinite canvas raster painting app.</description>
 <dependency>
     <dependentAssembly>
         <assemblyIdentity

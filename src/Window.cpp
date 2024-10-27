@@ -404,6 +404,10 @@ LRESULT Window::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
         Resize(LOWORD(lparam), HIWORD(lparam));
         Render();
     } break;
+    case WM_CLOSE: {
+        app->Exit();
+        break;
+    }
     case WM_DESTROY: {
         app->CloseTabletContexts();
         PostQuitMessage(0);
