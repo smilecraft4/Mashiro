@@ -7,6 +7,8 @@
 App *g_app = nullptr;
 
 App::App(HINSTANCE instance, int show_cmd) : _instance(instance), _show_cmd(show_cmd) {
+    // FIXME: Having only one global is alright and this one is really useful but the codebase may become to coupled
+    // overal
     g_app = this; // Must be first
 
     LOG_INFO(TEXT("Mashiro starting"));
@@ -30,9 +32,8 @@ App::~App() noexcept {
 }
 
 void App::Run() const {
-    _window->Show();
-
     LOG_INFO(TEXT("Mashiro running"));
+    _window->Show();
 
     MSG msg = {};
     while (GetMessage(&msg, nullptr, 0, 0) > 0) {
@@ -130,15 +131,10 @@ App *App::Get() {
 
 static COMDLG_FILTERSPEC file_spec[] = {{TEXT("Mashiro files"), TEXT("*.msh")}, {TEXT("All files"), TEXT("*.*")}};
 
-std::optional<std::filesystem::path> SaveAsDialog(std::filesystem::path directory, std::filesystem::path filename) {
-    if (!std::filesystem::exists(directory) || !std::filesystem::is_directory(directory)) {
-        throw new std::runtime_error("Directory provided as default path for SaveAsDialog does not exists");
-    }
-    directory = std::filesystem::absolute(directory);
+std::optional<std::filesystem::path> SaveAsDialog(std::filesystem::path filename) {
 
     IFileDialog *pfd{};
     IShellItem *psiResult{};
-    IShellItem *folder{};
     PWSTR pszFilePath{};
 
     HRESULT hr = CoCreateInstance(CLSID_FileSaveDialog, NULL, CLSCTX_ALL, IID_PPV_ARGS(&pfd));
@@ -149,8 +145,6 @@ std::optional<std::filesystem::path> SaveAsDialog(std::filesystem::path director
     hr = pfd->SetFileTypeIndex(1);
     hr = pfd->SetFileName(filename.wstring().c_str());
     hr = pfd->SetDefaultExtension(L"msh");
-    hr = SHCreateItemFromParsingName(directory.wstring().c_str(), NULL, IID_PPV_ARGS(&folder));
-    hr = pfd->SetDefaultFolder(folder);
 
     hr = pfd->Show(App::Get()->_window->Hwnd());
     if (hr == HRESULT_FROM_WIN32(ERROR_CANCELLED)) {
@@ -162,22 +156,15 @@ std::optional<std::filesystem::path> SaveAsDialog(std::filesystem::path director
     const auto path = std::filesystem::path(pszFilePath);
 
     CoTaskMemFree(pszFilePath);
-    folder->Release();
     psiResult->Release();
     pfd->Release();
 
     return path;
 }
 
-std::optional<std::filesystem::path> OpenDialog(std::filesystem::path directory) {
-    if (!std::filesystem::exists(directory) || !std::filesystem::is_directory(directory)) {
-        throw new std::runtime_error("Directory provided as default path for OpenDialog does not exists");
-    }
-
-    directory = std::filesystem::absolute(directory);
+std::optional<std::filesystem::path> OpenDialog() {
 
     IFileDialog *pfd{};
-    IShellItem *folder{};
     IShellItem *psiResult{};
     PWSTR pszFilePath{};
 
@@ -189,8 +176,6 @@ std::optional<std::filesystem::path> OpenDialog(std::filesystem::path directory)
     hr = pfd->SetFileTypes(ARRAYSIZE(file_spec), file_spec);
     hr = pfd->SetFileTypeIndex(1);
     hr = pfd->SetDefaultExtension(L"msh");
-    hr = SHCreateItemFromParsingName(directory.wstring().c_str(), NULL, IID_PPV_ARGS(&folder));
-    hr = pfd->SetDefaultFolder(folder);
 
     hr = pfd->Show(App::Get()->_window->Hwnd());
     if (hr == HRESULT_FROM_WIN32(ERROR_CANCELLED)) {
@@ -202,7 +187,6 @@ std::optional<std::filesystem::path> OpenDialog(std::filesystem::path directory)
     const auto path = std::filesystem::path(pszFilePath);
 
     CoTaskMemFree(pszFilePath);
-    folder->Release();
     psiResult->Release();
     pfd->Release();
 
@@ -242,7 +226,7 @@ bool App::SaveAs() {
     }
 
     const auto filename = _file->GetFilename().filename();
-    const auto path = SaveAsDialog(directory, filename);
+    const auto path = SaveAsDialog(filename);
     if (!path.has_value()) {
         return false;
     }
@@ -274,7 +258,7 @@ bool App::Open() {
         }
     }
 
-    const auto path = OpenDialog("./");
+    const auto path = OpenDialog();
     if (!path.has_value()) {
         return false;
     }

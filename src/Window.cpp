@@ -6,6 +6,8 @@
 #include <format>
 #include <stdexcept>
 
+// TODO: Maybe move the initialisation of OpenGL to the renderer rather than here, like Renderer::Init(HWND)
+
 constexpr auto WGL_CONTEXT_MAJOR_VERSION_ARB = 0x2091;
 constexpr auto WGL_CONTEXT_MINOR_VERSION_ARB = 0x2092;
 constexpr auto WGL_CONTEXT_PROFILE_MASK_ARB = 0x9126;
@@ -66,9 +68,9 @@ LRESULT Window::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
     _hwnd = hwnd;
     auto app = App::Get();
 
-    auto value = app->_inputs->HandleEvents(hwnd, msg, wparam, lparam);
-    if (value.has_value()) {
-        return value.value();
+    LRESULT result = 0;
+    if (app->_inputs->HandleEvents(hwnd, msg, wparam, lparam, &result)) {
+        return result;
     }
 
     // Accelerators (Shortcuts)
@@ -119,6 +121,44 @@ LRESULT Window::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
         default:
             break;
         }
+    }
+
+    // Mashiro events
+    switch (msg) {
+    case MS_STYLUSMOVE: {
+        LOG_INFO(TEXT("MS_STYLUSMOVE"));
+        return 0;
+    }
+    case MS_STYLUSBUTTON: {
+        LOG_INFO(TEXT("MS_STYLUSBUTTON"));
+        return 0;
+    }
+    case MS_STYLUSDOWN: {
+        LOG_INFO(TEXT("MS_STYLUSDOWN"));
+        return 0;
+    }
+    case MS_STYLUSUP: {
+        LOG_INFO(TEXT("MS_STYLUSUP"));
+        return 0;
+    }
+    case MS_STYLUSENTER: {
+        LOG_INFO(TEXT("MS_STYLUSENTER"));
+        return 0;
+    }
+    case MS_STYLUSEXIT: {
+        LOG_INFO(TEXT("MS_STYLUSEXIT"));
+        return 0;
+    }
+    case MS_STYLUSHOVER: {
+        LOG_INFO(TEXT("MS_STYLUSHOVER"));
+        return 0;
+    }
+    case MS_STYLUSWHEEL: {
+        LOG_INFO(TEXT("MS_STYLUSWHEEL"));
+        return 0;
+    }
+    default:
+        break;
     }
 
     // Window events

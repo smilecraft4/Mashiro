@@ -10,6 +10,15 @@
 // This is a singleton class as only one instance of input can be listenned to
 // TODO: fully support the mouse without break changes
 
+#define MS_STYLUSMOVE 0x0500
+#define MS_STYLUSBUTTON 0x0501
+#define MS_STYLUSDOWN 0x0502
+#define MS_STYLUSUP 0x0503
+#define MS_STYLUSENTER 0x0504
+#define MS_STYLUSEXIT 0x0505
+#define MS_STYLUSHOVER 0x0506 // FIXME: This event is not firing & I don't know why :c
+#define MS_STYLUSWHEEL 0x0507
+
 class Inputs {
   public:
     Inputs(const Inputs &) = delete;
@@ -20,7 +29,7 @@ class Inputs {
     Inputs() = default;
     ~Inputs() = default;
 
-    std::optional<LRESULT> HandleEvents(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam);
+    bool HandleEvents(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam, LRESULT *result);
 
     struct Packet {
         double orientation = 0.0; // Stylus angle compared to the surface 0 = facing north, 0.25 facing east, etc...
