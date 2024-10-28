@@ -143,7 +143,7 @@ void Program::Compile() {
         glDeleteProgram(_ID);
         _ID = 0;
 
-        Log::Info(ConvertString(infoLog));
+        LOG_INFO(ConvertString(infoLog));
         throw std::runtime_error(infoLog);
     }
     // Clean shaders
@@ -472,7 +472,7 @@ void Framebuffer::Render() {
 }
 
 Framebuffer::Framebuffer() {
-    _width  = 0;
+    _width = 0;
     _height = 0;
     _name = "";
     _ID = 0;

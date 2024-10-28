@@ -48,7 +48,7 @@ std::optional<LRESULT> Inputs::HandleEvents(HWND hwnd, UINT msg, WPARAM wparam, 
         _alt = GetKeyState(VK_MENU) < 0;
         _current_packet.x = GET_X_LPARAM(lparam);
         _current_packet.y = GET_Y_LPARAM(lparam);
-        Log::Info(TEXT("WM_MOUSEMOVE"));
+        LOG_INFO(TEXT("WM_MOUSEMOVE"));
 
         PostMessage(hwnd, MS_STYLUSMOVE, 0, 0);
         return 0;
@@ -56,7 +56,7 @@ std::optional<LRESULT> Inputs::HandleEvents(HWND hwnd, UINT msg, WPARAM wparam, 
     case WM_MOUSEHWHEEL: {
         GetInputData(lparam);
         _wheel_x = (double)GET_WHEEL_DELTA_WPARAM(wparam) / (double)WHEEL_DELTA;
-        Log::Info(std::format(TEXT("WM_MOUSEHWHEEL: {:.2f}"), _wheel_x));
+        LOG_INFO(std::format(TEXT("WM_MOUSEHWHEEL: {:.2f}"), _wheel_x));
 
         PostMessage(hwnd, MS_STYLUSWHEEL, _wheel_x, _wheel_y);
         return 0;
@@ -64,32 +64,32 @@ std::optional<LRESULT> Inputs::HandleEvents(HWND hwnd, UINT msg, WPARAM wparam, 
     case WM_MOUSEWHEEL: {
         GetInputData(lparam);
         _wheel_y = (double)GET_WHEEL_DELTA_WPARAM(wparam) / (double)WHEEL_DELTA;
-        Log::Info(std::format(TEXT("WM_MOUSEWHEEL: {:.2f}"), _wheel_y));
+        LOG_INFO(std::format(TEXT("WM_MOUSEWHEEL: {:.2f}"), _wheel_y));
 
         PostMessage(hwnd, MS_STYLUSWHEEL, _wheel_x, _wheel_y);
         return 0;
     }
     case WM_MOUSEHOVER:
         _stylus_hover = true;
-        Log::Info(TEXT("WM_MOUSEHOVER"));
+        LOG_INFO(TEXT("WM_MOUSEHOVER"));
 
         PostMessage(hwnd, MS_STYLUSHOVER, 0, 0);
         break;
     case WM_MOUSELEAVE:
         _stylus_leave = true;
-        Log::Info(TEXT("WM_MOUSELEAVE"));
+        LOG_INFO(TEXT("WM_MOUSELEAVE"));
 
         PostMessage(hwnd, MS_STYLUSEXIT, 0, 0);
         break;
     case WM_MOUSEACTIVATE:
-        Log::Info(TEXT("WM_MOUSEACTIVATE"));
+        LOG_INFO(TEXT("WM_MOUSEACTIVATE"));
         break;
 
     // handle mouse buttons
     case WM_LBUTTONDOWN: {
         GetInputData(lparam);
         _left = true;
-        Log::Info(TEXT("WM_LBUTTONDOWN"));
+        LOG_INFO(TEXT("WM_LBUTTONDOWN"));
 
         PostMessage(hwnd, MS_STYLUSBUTTON, 0, 0);
         return 0;
@@ -97,7 +97,7 @@ std::optional<LRESULT> Inputs::HandleEvents(HWND hwnd, UINT msg, WPARAM wparam, 
     case WM_LBUTTONDBLCLK: {
         GetInputData(lparam);
         _left = true;
-        Log::Info(TEXT("WM_LBUTTONDBLCLK"));
+        LOG_INFO(TEXT("WM_LBUTTONDBLCLK"));
 
         PostMessage(hwnd, MS_STYLUSBUTTON, 0, 0);
         return 0;
@@ -105,7 +105,7 @@ std::optional<LRESULT> Inputs::HandleEvents(HWND hwnd, UINT msg, WPARAM wparam, 
     case WM_LBUTTONUP: {
         GetInputData(lparam);
         _left = false;
-        Log::Info(TEXT("WM_LBUTTONUP"));
+        LOG_INFO(TEXT("WM_LBUTTONUP"));
 
         PostMessage(hwnd, MS_STYLUSBUTTON, 0, 0);
         return 0;
@@ -113,7 +113,7 @@ std::optional<LRESULT> Inputs::HandleEvents(HWND hwnd, UINT msg, WPARAM wparam, 
     case WM_RBUTTONDOWN: {
         GetInputData(lparam);
         _right = true;
-        Log::Info(TEXT("WM_RBUTTONDOWN"));
+        LOG_INFO(TEXT("WM_RBUTTONDOWN"));
 
         PostMessage(hwnd, MS_STYLUSBUTTON, 0, 0);
         return 0;
@@ -121,7 +121,7 @@ std::optional<LRESULT> Inputs::HandleEvents(HWND hwnd, UINT msg, WPARAM wparam, 
     case WM_RBUTTONDBLCLK: {
         GetInputData(lparam);
         _right = true;
-        Log::Info(TEXT("WM_RBUTTONDBLCLK"));
+        LOG_INFO(TEXT("WM_RBUTTONDBLCLK"));
 
         PostMessage(hwnd, MS_STYLUSBUTTON, 0, 0);
         return 0;
@@ -129,7 +129,7 @@ std::optional<LRESULT> Inputs::HandleEvents(HWND hwnd, UINT msg, WPARAM wparam, 
     case WM_RBUTTONUP: {
         GetInputData(lparam);
         _right = false;
-        Log::Info(TEXT("WM_RBUTTONUP"));
+        LOG_INFO(TEXT("WM_RBUTTONUP"));
 
         PostMessage(hwnd, MS_STYLUSBUTTON, 0, 0);
         return 0;
@@ -137,7 +137,7 @@ std::optional<LRESULT> Inputs::HandleEvents(HWND hwnd, UINT msg, WPARAM wparam, 
     case WM_MBUTTONDOWN: {
         GetInputData(lparam);
         _middle = true;
-        Log::Info(TEXT("WM_MBUTTONDOWN"));
+        LOG_INFO(TEXT("WM_MBUTTONDOWN"));
 
         PostMessage(hwnd, MS_STYLUSBUTTON, 0, 0);
         return 0;
@@ -145,7 +145,7 @@ std::optional<LRESULT> Inputs::HandleEvents(HWND hwnd, UINT msg, WPARAM wparam, 
     case WM_MBUTTONDBLCLK: {
         GetInputData(lparam);
         _middle = true;
-        Log::Info(TEXT("WM_MBUTTONDBLCLK"));
+        LOG_INFO(TEXT("WM_MBUTTONDBLCLK"));
 
         PostMessage(hwnd, MS_STYLUSBUTTON, 0, 0);
         return 0;
@@ -153,7 +153,7 @@ std::optional<LRESULT> Inputs::HandleEvents(HWND hwnd, UINT msg, WPARAM wparam, 
     case WM_MBUTTONUP: {
         GetInputData(lparam);
         _middle = false;
-        Log::Info(TEXT("WM_MBUTTONUP"));
+        LOG_INFO(TEXT("WM_MBUTTONUP"));
 
         PostMessage(hwnd, MS_STYLUSBUTTON, 0, 0);
         return 0;
@@ -162,11 +162,11 @@ std::optional<LRESULT> Inputs::HandleEvents(HWND hwnd, UINT msg, WPARAM wparam, 
         GetInputData(lparam);
         if (GET_XBUTTON_WPARAM(wparam) == XBUTTON1) {
             _xbutton1 = true;
-            Log::Info(TEXT("WM_XBUTTON1DOWN"));
+            LOG_INFO(TEXT("WM_XBUTTON1DOWN"));
 
         } else {
             _xbutton2 = true;
-            Log::Info(TEXT("WM_XBUTTON2DOWN"));
+            LOG_INFO(TEXT("WM_XBUTTON2DOWN"));
         }
 
         PostMessage(hwnd, MS_STYLUSBUTTON, 0, 0);
@@ -176,11 +176,11 @@ std::optional<LRESULT> Inputs::HandleEvents(HWND hwnd, UINT msg, WPARAM wparam, 
         GetInputData(lparam);
         if (GET_XBUTTON_WPARAM(wparam) == XBUTTON1) {
             _xbutton1 = true;
-            Log::Info(TEXT("WM_XBUTTON1DBLCLK"));
+            LOG_INFO(TEXT("WM_XBUTTON1DBLCLK"));
 
         } else {
             _xbutton2 = true;
-            Log::Info(TEXT("WM_XBUTTON2DBLCLK"));
+            LOG_INFO(TEXT("WM_XBUTTON2DBLCLK"));
         }
 
         PostMessage(hwnd, MS_STYLUSBUTTON, 0, 0);
@@ -190,11 +190,11 @@ std::optional<LRESULT> Inputs::HandleEvents(HWND hwnd, UINT msg, WPARAM wparam, 
         GetInputData(lparam);
         if (GET_XBUTTON_WPARAM(wparam) == XBUTTON1) {
             _xbutton1 = false;
-            Log::Info(TEXT("WM_XBUTTON1UP"));
+            LOG_INFO(TEXT("WM_XBUTTON1UP"));
 
         } else {
             _xbutton2 = false;
-            Log::Info(TEXT("WM_XBUTTON2UP"));
+            LOG_INFO(TEXT("WM_XBUTTON2UP"));
         }
 
         PostMessage(hwnd, MS_STYLUSBUTTON, 0, 0);

@@ -153,7 +153,7 @@ void Canvas::Render(Viewport *viewport) {
 
 void Canvas::CreateTile(glm::ivec2 coord) {
     if (_coord_tile.contains({coord.x, coord.y})) {
-        Log::Trace(std::format(TEXT("Tile ({},{}) is already created"), coord.x, coord.y));
+        LOG_TRACE(std::format(TEXT("Tile ({},{}) is already created"), coord.x, coord.y));
         return;
     }
 
@@ -170,14 +170,14 @@ void Canvas::CreateTile(glm::ivec2 coord) {
     _tiles_textures.push_back(
         Texture(std::format(TEXT("Tile ({},{}) Texture"), coord.x, coord.y), resolution, resolution));
 
-    Log::Trace(std::format(TEXT("Created Tile ({},{})"), coord.x, coord.y));
+    LOG_TRACE(std::format(TEXT("Created Tile ({},{})"), coord.x, coord.y));
 
     _saved = false;
 }
 
 void Canvas::DeleteTile(glm::ivec2 coord) {
     if (!_coord_tile.contains({coord.x, coord.y})) {
-        Log::Trace(std::format(TEXT("Tile ({},{}) does not exist and thus cannot be deleted"), coord.x, coord.y));
+        LOG_TRACE(std::format(TEXT("Tile ({},{}) does not exist and thus cannot be deleted"), coord.x, coord.y));
         return;
     }
 
@@ -191,7 +191,7 @@ void Canvas::DeleteTile(glm::ivec2 coord) {
     _tiles_processing.erase(_tiles_processing.begin() + index);
     _coord_tile.erase({coord.x, coord.y});
 
-    Log::Trace(std::format(TEXT("Deleted Tile ({},{})"), coord.x, coord.y));
+    LOG_TRACE(std::format(TEXT("Deleted Tile ({},{})"), coord.x, coord.y));
 
     _saved = false;
 }

@@ -7,7 +7,7 @@ int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, 
                     _In_ int nShowCmd) {
     try {
 
-        Log::Info(lpCmdLine);
+        LOG_INFO(lpCmdLine);
         App app(hInstance, nShowCmd);
 
         if (lpCmdLine && *lpCmdLine) {
@@ -22,7 +22,7 @@ int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, 
         app.Run();
     } catch (const std::runtime_error &e) {
         tstring err = ConvertString(e.what());
-        Log::Info(err);
+        LOG_INFO(err);
         MessageBox(nullptr, err.c_str(), TEXT("Mashiro"), MB_ICONERROR | MB_OK);
         return -1;
     }

@@ -195,7 +195,7 @@ std::unique_ptr<File> File::Open(std::filesystem::path filename) {
 
     // make sure the file type is correct (_type == "msh")
     if (strcmp(file->_info._type, "msh") != 0) {
-        Log::Info(TEXT("Wrong file format"));
+        LOG_INFO(TEXT("Wrong file format"));
         throw std::runtime_error("Wrong file format");
     }
 
@@ -297,7 +297,7 @@ std::vector<uint32_t> File::ReadTileTexture(int x, int y) {
     std::vector<uint32_t> texture = Read(_pngs[png_index]);
 
     if (texture.size() <= 0) {
-        Log::Info(std::format(TEXT("Failed to get saved texture at coord {},{}"), x, y));
+        LOG_INFO(std::format(TEXT("Failed to get saved texture at coord {},{}"), x, y));
         throw std::runtime_error(std::format("Failed to get saved texture at coord {},{}", x, y));
     }
 
@@ -310,12 +310,12 @@ void File::WriteTileTexture(int x, int y, std::vector<uint32_t> pixels, int comp
         png_index = _pngs.size();
         _pngs.push_back({});
         _textures_indexes.emplace(std::pair<int, int>(x, y), png_index);
-        Log::Info(std::format(TEXT("[FILE]: Added new Tile_{}_{}"), x, y));
+        LOG_INFO(std::format(TEXT("[FILE]: Added new Tile_{}_{}"), x, y));
     } else {
         png_index = _textures_indexes[{x, y}];
     }
 
     _pngs[png_index] = Write(compression, _info._resolution, _info._resolution, pixels);
-    Log::Info(std::format(TEXT("[FILE]: Saved Tile_{}_{}: {}/{}b"), x, y, _pngs[png_index].size(),
-                          pixels.size() * sizeof(uint32_t)));
+    LOG_INFO(std::format(TEXT("[FILE]: Saved Tile_{}_{}: {}/{}b"), x, y, _pngs[png_index].size(),
+                         pixels.size() * sizeof(uint32_t)));
 }

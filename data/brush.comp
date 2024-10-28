@@ -45,6 +45,5 @@ void main() {
 		pixel = mix(pixel, brushes_datas[i].color, falloff * brushes_datas[i].color.a);
 		imageStore(tile_tex, tile_tex_pos, pixel);
 	}
-
 }
 

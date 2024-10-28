@@ -61,23 +61,9 @@ Window::~Window() {
 }
 
 LRESULT Window::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
-    // Log::Trace(std::format(TEXT("{}"), msg));
+    LOG_TRACE(std::format(TEXT("{}"), msg));
 
     _hwnd = hwnd;
-
-    static POINT ptOld = {0};
-    static POINT ptNew = {0};
-    static POINT ptMouseDown, ptMouseUp = {-1};
-    static bool bMouseDown, bMouseUp = false;
-    static UINT prsOld = 0;
-    static UINT prsNew = 0;
-    static RECT g_clientRect = {0};
-    static MONITORINFO g_monInfo = {0};
-
-    PAINTSTRUCT psPaint = {0};
-    HDC hDC = nullptr;
-    bool fHandled = true;
-    LRESULT lResult = 0L;
     auto app = App::Get();
 
     auto value = app->_inputs->HandleEvents(hwnd, msg, wparam, lparam);
@@ -110,26 +96,26 @@ LRESULT Window::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
         }
         case ID_TOGGLE_FULLSCREEN: {
             ToggleFullscren();
-        }
             return 0;
+        }
         case ID_REFRESH: {
+            return 0;
             app->Refresh();
         }
-            return 0;
         case ID_MOVE: {
+            return 0;
             app->SetNavigationMode();
         }
-            return 0;
         case ID_BRUSH: {
             app->SetPaintingMode();
+            return 0;
             app->_brush->SetColor(glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
         }
-            return 0;
         case ID_ERASER: {
             app->SetPaintingMode();
+            return 0;
             app->_brush->SetColor(glm::vec4(1.0f, 1.0f, 1.0f, 1.0f));
         }
-            return 0;
         default:
             break;
         }
@@ -137,137 +123,11 @@ LRESULT Window::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
 
     // Window events
     switch (msg) {
-    case WM_LBUTTONDOWN: {
-        ShowCursor(FALSE);
-        bMouseDown = true;
-        if (app->_useMouseMessages) {
-            app->PollForPenData(app->_hCtxUsedForPolling, hwnd, ptOld, prsOld, ptNew, prsNew);
-        } else {
-            InvalidateRect(hwnd, nullptr, false);
-        }
-        break;
-    }
-    case WM_LBUTTONUP: {
-        ShowCursor(TRUE);
-        bMouseUp = true;
-        if (app->_useMouseMessages) {
-            app->PollForPenData(app->_hCtxUsedForPolling, hwnd, ptOld, prsOld, ptNew, prsNew);
-        } else {
-            InvalidateRect(hwnd, nullptr, false);
-        }
-        break;
-    }
-    case WM_KEYDOWN:
-        switch (wparam) {
-        case VK_SPACE:
-            app->SetNavigationMode();
-            break;
-        default:
-            break;
-        }
-        break;
-    case WM_KEYUP:
-        switch (wparam) {
-        case VK_SPACE:
-            app->SetPaintingMode();
-            break;
-        default:
-            break;
-        }
-        break;
-    case WM_MOUSEMOVE: {
-        if (app->_useMouseMessages) {
-            app->PollForPenData(app->_hCtxUsedForPolling, hwnd, ptOld, prsOld, ptNew, prsNew);
-        }
-        break;
-    }
-    case WT_PACKET: {
-        if (app->_contextMap.count((HCTX)lparam) == 0) {
-            break;
-        }
-
-        app->_hctx = (HCTX)lparam;
-        PACKET pkt = {0};
-
-        if (gpWTPacket(app->_hctx, static_cast<int>(wparam), &pkt)) {
-            if (app->_useMouseMessages) {
-                POINT curPoint;
-                GetCursorPos(&curPoint);
-                pkt.pkX = curPoint.x;
-                pkt.pkY = curPoint.y;
-            }
-
-            // WacomTrace("WT_PACKET: g_hctx[0x%X], pkt: x,y,p,tp: %i,%i,%i,%i - timestamp: %i\n",
-            //	app->_hctx, pkt.pkX, pkt.pkY, pkt.pkNormalPressure, pkt.pkTangentPressure, pkt.pkTime);
-
-            ptNew.x = pkt.pkX;
-            ptNew.y = pkt.pkY;
-            prsNew = pkt.pkNormalPressure;
-
-            InvalidateRect(hwnd, nullptr, false);
-        }
-
-        break;
-    }
-    case WT_INFOCHANGE: {
-        int nAttachedDevices = 0;
-        gpWTInfoA(WTI_INTERFACE, IFC_NDEVICES, &nAttachedDevices);
-
-        WacomTrace("WT_INFOCHANGE detected; number of connected tablets is: %i\n", nAttachedDevices);
-
-        // close all current tablet contexts
-        app->CloseTabletContexts();
-
-        if (nAttachedDevices > 0) {
-            // re-enumerate attached tablets
-            app->OpenTabletContexts(hwnd);
-        }
-
-        break;
-    }
-
-    case WM_DISPLAYCHANGE: {
-        app->UpdateSystemExtents();
-        app->CloseTabletContexts();
-
-        // re-enumerate attached tablets
-        // Possibly redundant with WT_INFOCHANGE re-enumerate.
-        app->OpenTabletContexts(hwnd);
-
-        break;
-    }
-
-    // WIntab message indicating pen came into or went out of proximity to tablet surface.
-    case WT_PROXIMITY: {
-        if (app->_contextMap.count((HCTX)lparam) == 0) {
-            // WacomTrace("WT_PACKET: (HCTX)lParam: 0x%X not found in map\n", (HCTX)lParam);
-            break;
-        }
-
-        app->_hctx = (HCTX)lparam;
-
-        bool entering = (HIWORD(lparam) != 0);
-        App::TabletInfo info = {0};
-        std::stringstream szTitle;
-        szTitle.flush();
-
-        if (app->_contextMap.count(app->_hctx) > 0) {
-            info = app->_contextMap[app->_hctx];
-
-            if (app->_openSystemContext) {
-                szTitle << (entering ? "ENTER: " : "LEAVE: ") << "Mashiro"
-                        << "; #tablet(s) attached: " << app->nAttachedDevices << "; drawing on: virtual system context";
-            } else {
-                szTitle << (entering ? "ENTER: " : "LEAVE: ") << "Mashiro"
-                        << "; #tablet(s) attached: " << app->nAttachedDevices << "; drawing on: " << info.name;
-            }
-            WacomTrace("Tablet name: %s\n", szTitle.str().c_str());
-        } else {
-            WacomTrace("Oops - couldn't find context: 0x%X\n", app->_hctx);
-            szTitle << "ERROR: couldn't find tablet context: " << app->_hctx;
-        }
-
-        break;
+    case WM_CREATE: {
+        _hwnd = hwnd;
+        // TODO use a more sensible place and name for this, it is quite hidden here
+        Create();
+        return 0;
     }
     case WM_ERASEBKGND:
         return TRUE;
@@ -275,157 +135,25 @@ LRESULT Window::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
         if (!app->_file || !app->_canvas) {
             break;
         }
-        if (prsNew > 0) {
-            auto viewport = App::Get()->_viewport.get();
-            auto brush = App::Get()->_brush.get();
-
-            int penWidth =
-                (int)(1 + std::floor(10 * (double)prsNew / (double)app->_contextMap[app->_hctx].maxPressure));
-
-            POINT oldPoint = {ptOld.x, ptOld.y};
-            POINT newPoint = {ptNew.x, ptNew.y};
-
-            // Log::Info(std::format(TEXT("{};{}"), first_data.position.x, first_data.position.y));
-            App::Get()->EnableBrush(true);
-            if (app->_openSystemContext) {
-                // Convert system pixel coordinates to client rectangle (pixels).
-                // Wintab has done all the heavy lifting to produce screen coordinates - just convert to client window
-                // coordinates.
-                ScreenToClient(hwnd, &oldPoint);
-                ScreenToClient(hwnd, &newPoint);
-            } else {
-                // Interpolate tablet coordinates to client rectangle (pixels).
-                // Note that this will be affected by tablet to display mapping.
-
-                // If scale factors not computed yet, force that to happen in WM_SIZE handler.
-                if (app->_scaleWidth == 0.0) {
-                    SendMessage(hwnd, WM_SIZE, 0, 0);
-                    break;
-                }
-
-                // Convert to pixels
-                if (app->_useActualDigitizerOutput && app->_contextMap[app->_hctx].displayTablet) {
-                    if (app->_kioskDisplay) {
-                        // Map tablet point to app window rect
-                        oldPoint.x = (LONG)((double)oldPoint.x * app->_scaleWidth);
-                        oldPoint.y = (LONG)((double)oldPoint.y * app->_scaleHeight);
-                        newPoint.x = (LONG)((double)newPoint.x * app->_scaleWidth);
-                        newPoint.y = (LONG)((double)newPoint.y * app->_scaleHeight);
-                        oldPoint.x += app->_windowRect.left;
-                        oldPoint.y += app->_windowRect.top;
-                        newPoint.x += app->_windowRect.left;
-                        newPoint.y += app->_windowRect.top;
-                    } else {
-                        // Map tablet point to monitor
-                        oldPoint.x = (LONG)((double)oldPoint.x * app->_scaleWidth);
-                        oldPoint.y = (LONG)((double)oldPoint.y * app->_scaleHeight);
-                        newPoint.x = (LONG)((double)newPoint.x * app->_scaleWidth);
-                        newPoint.y = (LONG)((double)newPoint.y * app->_scaleHeight);
-                        oldPoint.x += g_monInfo.rcMonitor.left;
-                        oldPoint.y += g_monInfo.rcMonitor.top;
-                        newPoint.x += g_monInfo.rcMonitor.left;
-                        newPoint.y += g_monInfo.rcMonitor.top;
-                    }
-                } else {
-                    // Map tablet point to screen space
-                    App::TabletInfo info = app->_contextMap[app->_hctx];
-
-                    oldPoint.x =
-                        (LONG)app->_sysOrigX + (LONG)(app->_sysWidth * ((double)oldPoint.x / (double)info.tabletXExt));
-                    oldPoint.y =
-                        (LONG)app->_sysOrigY + (LONG)(app->_sysHeight * ((double)oldPoint.y / (double)info.tabletYExt));
-
-                    newPoint.x =
-                        (LONG)app->_sysOrigX + (LONG)(app->_sysWidth * ((double)newPoint.x / (double)info.tabletXExt));
-                    newPoint.y =
-                        (LONG)app->_sysOrigY + (LONG)(app->_sysHeight * ((double)newPoint.y / (double)info.tabletYExt));
-                }
-
-                // map to client window coordinates
-                ScreenToClient(hwnd, &oldPoint);
-                ScreenToClient(hwnd, &newPoint);
-            }
-
-#if defined(TRACE_DRAWPENDATA)
-            WacomTrace("WM_PAINT: old: [%i,%i], new: [%i,%i], prsOld: %i, prsNew: %i, penWidth: %i %s\n", oldPoint.x,
-                       oldPoint.y, newPoint.x, newPoint.y, penWidth, prsOld, prsNew,
-                       oldPoint.x == newPoint.x && oldPoint.y == newPoint.y ? "[DATA HOLE]" : "");
-#endif
-
-            glm::vec4 start_pos{}, end_pos{};
-            start_pos.x = oldPoint.x;
-            start_pos.y = oldPoint.y;
-            end_pos.x = newPoint.x;
-            end_pos.y = newPoint.y;
-
-            if (app->_navigation_mode) {
-                auto previous_pos = viewport->GetPosition();
-                previous_pos += glm::vec2(end_pos - start_pos) * glm::vec2(1.0f, -1.0f);
-                viewport->SetPosition(previous_pos);
-            }
-
-            if (app->_painting_mode) {
-
-                auto color = brush->GetColor();
-
-                start_pos = glm::vec4((glm::vec2(start_pos) / glm::vec2(viewport->GetSize()) - glm::vec2(0.5f)) *
-                                          glm::vec2(2.0f, -2.0f),
-                                      0.0, 1.0);
-                start_pos = glm::inverse(viewport->_matrices.view) * glm::inverse(viewport->_matrices.proj) * start_pos;
-
-                end_pos = glm::vec4((glm::vec2(end_pos) / glm::vec2(viewport->GetSize()) - glm::vec2(0.5f)) *
-                                        glm::vec2(2.0f, -2.0f),
-                                    0.0, 1.0);
-                end_pos = glm::inverse(viewport->_matrices.view) * glm::inverse(viewport->_matrices.proj) * end_pos;
-
-                Brush::BrushData start{}, end{};
-                start.pressure = prsOld / 8192.0;
-                start.position = start_pos;
-                start.color = color;
-
-                end.pressure = prsNew / 8192.0;
-                end.position = end_pos;
-                end.color = color;
-
-                brush->PaintLine(App::Get()->_canvas.get(), start, end, Preferences::Get()->_brush_step);
-            }
-
-            Render();
-        }
-
-        // Keep track of last time we did move or draw.
-        ptOld = ptNew;
-        prsOld = prsNew;
+        Render();
+        return 0;
     }
-
-    break;
     case WM_MOVE: {
-        app->UpdateWindowExtents(hwnd);
         Move((short)LOWORD(lparam), (short)HIWORD(lparam));
         Render();
-    } break;
+        return 0;
+    }
     case WM_SIZE: {
-        app->UpdateWindowExtents(hwnd);
         Resize(LOWORD(lparam), HIWORD(lparam));
         Render();
-    } break;
+        return 0;
+    }
     case WM_CLOSE: {
         app->Exit();
-        break;
+        return 0;
     }
     case WM_DESTROY: {
-        app->CloseTabletContexts();
         PostQuitMessage(0);
-    }
-        return 0;
-    default:
-        break;
-    }
-
-    switch (msg) {
-    case WM_CREATE: {
-        _hwnd = hwnd;
-        Create();
         return 0;
     }
     default:
@@ -473,7 +201,7 @@ void Window::Create() {
         throw std::runtime_error("Failed to load glad");
     }
 
-    Log::Info(std::format(TEXT("OpenGL version: {}"), ConvertString((char *)glGetString(GL_VERSION))));
+    LOG_INFO(std::format(TEXT("OpenGL version: {}"), ConvertString((char *)glGetString(GL_VERSION))));
 
     typedef BOOL(APIENTRY * PFNWGLSWAPINTERVALPROC)(int);
     PFNWGLSWAPINTERVALPROC wglSwapIntervalEXT = 0;
