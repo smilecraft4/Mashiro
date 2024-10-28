@@ -2,6 +2,8 @@
 #include "Log.h"
 #include "Resource.h"
 
+#include <ShObjIdl.h>
+
 int App::nOpenContexts = 0;
 int App::nAttachedDevices = 0;
 
@@ -89,6 +91,8 @@ App::App(HINSTANCE instance, int show_cmd) : _instance(instance), _show_cmd(show
 
     Log::Info(TEXT("Mashiro starting"));
 
+    _preferences = std::make_unique<Preferences>();
+
     if (!LoadWintab()) {
         throw std::runtime_error("Failed to initialize wintab.dll");
     }
@@ -106,14 +110,16 @@ App::App(HINSTANCE instance, int show_cmd) : _instance(instance), _show_cmd(show
 
     SetPaintingMode();
 
+    _inputs = std::make_unique<Inputs>();
+
     // InitSettings
     _window_class = std::make_unique<WindowClass>(_instance, TEXT("Mashiro"));
     _window = std::make_unique<Window>(800, 600, TEXT("Mashiro"));
 }
 
 App::~App() noexcept {
-    //_canvas->Save(_opened_file.get());
-    //_opened_file->Save();
+    //_canvas->Save(_file.get());
+    //_file->Save();
 
     UnloadWintab();
     Log::Info(TEXT("Mashiro closing"));
@@ -131,8 +137,8 @@ void App::Run() const {
             DispatchMessage(&msg);
         }
 
-        if (_opened_file && _canvas) {
-            _canvas->LazySave({0.0f, 0.0f}, _opened_file.get());
+        if (_file && _canvas) {
+            _canvas->LazySave({0.0f, 0.0f}, _file.get());
         }
     }
 }
@@ -382,7 +388,6 @@ bool App::HasAttachedDisplayTablet() {
 ///////////////////////////////////////////////////////////////////////////////
 
 void App::Init(HWND hwnd) {
-
     UpdateSystemExtents();
 
     // Initialize a Wintab context for each connected tablet.
@@ -412,20 +417,11 @@ void App::Init(HWND hwnd) {
     _texture->SetPixels(pixels);
     _texture->GenerateMipmaps();
 
-    _preferences = std::make_unique<Preferences>();
+    _framebuffer = Framebuffer::Create(TEXT("Canvas framebuffer"), 800, 600);
 
     Canvas::Init();
     Brush::Init();
     Framebuffer::Init();
-
-    if (std::filesystem::exists("./mashiro.msh")) {
-        _opened_file = File::Open("./mashiro.msh");
-    } else {
-        _opened_file = File::New("./mashiro.msh");
-    }
-
-    _framebuffer = Framebuffer::Create(TEXT("Canvas framebuffer"), 800, 600);
-    _canvas = Canvas::Open(_opened_file.get());
 
     _brush = std::make_unique<Brush>();
     _brush->SetColor(glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
@@ -433,23 +429,25 @@ void App::Init(HWND hwnd) {
 }
 
 void App::Update() {
-    _canvas->LazySave({0.0f, 0.0f}, _opened_file.get());
+    _canvas->LazySave({0.0f, 0.0f}, _file.get());
 }
 
 void App::Render() {
     _framebuffer->Bind();
 
-    glClearColor(1.0f, 1.0f, 1.0f, 1.0f); 
+    glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
-    _canvas->Render(_viewport.get());
+
+    if (_canvas) {
+        _canvas->Render(_viewport.get());
+    }
 
     _framebuffer->Unbind();
 
-
-    glClearColor(1.0f, 1.0f, 1.0f, 1.0f); 
+    glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
     _framebuffer->Render();
-    
+
     //_brush->Render();
 }
 
@@ -471,4 +469,229 @@ void App::SetPaintingMode() {
 
 App *App::Get() {
     return g_app;
+}
+
+static COMDLG_FILTERSPEC file_spec[] = {{TEXT("Mashiro files"), TEXT("*.msh")}, {TEXT("All files"), TEXT("*.*")}};
+
+std::optional<std::filesystem::path> SaveAsDialog(std::filesystem::path directory, std::filesystem::path filename) {
+    if (!std::filesystem::exists(directory) || !std::filesystem::is_directory(directory)) {
+        throw new std::runtime_error("Directory provided as default path for SaveAsDialog does not exists");
+    }
+    directory = std::filesystem::absolute(directory);
+
+    IFileDialog *pfd{};
+    IShellItem *psiResult{};
+    IShellItem *folder{};
+    PWSTR pszFilePath{};
+
+    HRESULT hr = CoCreateInstance(CLSID_FileSaveDialog, NULL, CLSCTX_ALL, IID_PPV_ARGS(&pfd));
+    DWORD dwFlags;
+    hr = pfd->GetOptions(&dwFlags);
+    hr = pfd->SetOptions(dwFlags | FOS_FORCEFILESYSTEM);
+    hr = pfd->SetFileTypes(ARRAYSIZE(file_spec), file_spec);
+    hr = pfd->SetFileTypeIndex(1);
+    hr = pfd->SetFileName(filename.wstring().c_str());
+    hr = pfd->SetDefaultExtension(L"msh");
+    hr = SHCreateItemFromParsingName(directory.wstring().c_str(), NULL, IID_PPV_ARGS(&folder));
+    hr = pfd->SetDefaultFolder(folder);
+
+    hr = pfd->Show(App::Get()->_window->Hwnd());
+    if (hr == HRESULT_FROM_WIN32(ERROR_CANCELLED)) {
+        return {};
+    }
+
+    hr = pfd->GetResult(&psiResult);
+    hr = psiResult->GetDisplayName(SIGDN_FILESYSPATH, &pszFilePath);
+    const auto path = std::filesystem::path(pszFilePath);
+
+    CoTaskMemFree(pszFilePath);
+    folder->Release();
+    psiResult->Release();
+    pfd->Release();
+
+    return path;
+}
+
+std::optional<std::filesystem::path> OpenDialog(std::filesystem::path directory) {
+    if (!std::filesystem::exists(directory) || !std::filesystem::is_directory(directory)) {
+        throw new std::runtime_error("Directory provided as default path for OpenDialog does not exists");
+    }
+
+    directory = std::filesystem::absolute(directory);
+
+    IFileDialog *pfd{};
+    IShellItem *folder{};
+    IShellItem *psiResult{};
+    PWSTR pszFilePath{};
+
+    HRESULT hr = CoCreateInstance(CLSID_FileOpenDialog, NULL, CLSCTX_ALL, IID_PPV_ARGS(&pfd));
+
+    DWORD dwFlags;
+    hr = pfd->GetOptions(&dwFlags);
+    hr = pfd->SetOptions(dwFlags | FOS_FORCEFILESYSTEM);
+    hr = pfd->SetFileTypes(ARRAYSIZE(file_spec), file_spec);
+    hr = pfd->SetFileTypeIndex(1);
+    hr = pfd->SetDefaultExtension(L"msh");
+    hr = SHCreateItemFromParsingName(directory.wstring().c_str(), NULL, IID_PPV_ARGS(&folder));
+    hr = pfd->SetDefaultFolder(folder);
+
+    hr = pfd->Show(App::Get()->_window->Hwnd());
+    if (hr == HRESULT_FROM_WIN32(ERROR_CANCELLED)) {
+        return {};
+    }
+
+    hr = pfd->GetResult(&psiResult);
+    hr = psiResult->GetDisplayName(SIGDN_FILESYSPATH, &pszFilePath);
+    const auto path = std::filesystem::path(pszFilePath);
+
+    CoTaskMemFree(pszFilePath);
+    folder->Release();
+    psiResult->Release();
+    pfd->Release();
+
+    return path;
+}
+
+// TODO: Better handle the communication between the file and the canvas
+
+bool App::Save() {
+    if (!_file) {
+        return false;
+    }
+
+    if (_file->IsNew()) {
+        return SaveAs();
+    }
+
+    if (_file->IsSaved() && _canvas->IsSaved()) {
+        return true;
+    }
+
+    _canvas->Save(_file.get());
+    _file->Save(_file->GetFilename());
+
+    SetWindowText(_window->Hwnd(), _file->GetDisplayName().c_str());
+    return true;
+}
+
+bool App::SaveAs() {
+    if (!_file) {
+        return false;
+    }
+
+    auto directory = _file->GetFilename().root_directory();
+    if (!std::filesystem::exists(directory)) {
+        directory = "./";
+    }
+
+    const auto filename = _file->GetFilename().filename();
+    const auto path = SaveAsDialog(directory, filename);
+    if (!path.has_value()) {
+        return false;
+    }
+
+    _file->Rename(path.value().filename());
+    _canvas->Save(_file.get());
+    _file->Save(path.value());
+
+    SetWindowText(_window->Hwnd(), _file->GetDisplayName().c_str());
+    return true;
+}
+
+bool App::Open() {
+    if (_file) {
+        if (!_file->IsSaved() || !_canvas->IsSaved()) {
+            int result;
+            TaskDialog(_window->Hwnd(), _instance, TEXT("Mashiro"),
+                       std::format(TEXT("Save {}"), _file->GetFilename().wstring()).c_str(), TEXT("dsqdqs"),
+                       TDCBF_YES_BUTTON | TDCBF_NO_BUTTON | TDCBF_CANCEL_BUTTON, TD_WARNING_ICON, &result);
+            switch (result) {
+            case IDYES:
+                Save();
+                break;
+            case IDNO:
+                break;
+            case IDCANCEL:
+                return false;
+            }
+        }
+    }
+
+    const auto path = OpenDialog("./");
+    if (!path.has_value()) {
+        return false;
+    }
+
+    _canvas.release();
+    _file.release();
+
+    _file = File::Open(path.value());
+    _canvas = Canvas::Open(_file.get());
+
+    SetWindowText(_window->Hwnd(), _file->GetDisplayName().c_str());
+
+    _window->Render();
+    return true;
+}
+
+bool App::New() {
+    if (_file) {
+        if (!_file->IsSaved() || !_canvas->IsSaved()) {
+            int result;
+            TaskDialog(_window->Hwnd(), _instance, TEXT("Mashiro"),
+                       std::format(TEXT("Save {}"), _file->GetFilename().wstring()).c_str(), TEXT("dsqdqs"),
+                       TDCBF_YES_BUTTON | TDCBF_NO_BUTTON | TDCBF_CANCEL_BUTTON, TD_WARNING_ICON, &result);
+            switch (result) {
+            case IDYES: {
+                const auto result = Save();
+                if (!result) {
+                    return false;
+                }
+                break;
+            }
+            case IDNO:
+                break;
+            case IDCANCEL:
+                return false;
+            }
+        }
+    }
+
+    _canvas.release();
+    _file.release();
+
+    _file = File::New("unnamed.msh");
+    _canvas = Canvas::Open(_file.get());
+
+    SetWindowText(_window->Hwnd(), _file->GetDisplayName().c_str());
+
+    _window->Render();
+
+    return true;
+}
+
+void App::Exit() {
+    if (_file) {
+        if (!_file->IsSaved() || !_canvas->IsSaved()) {
+            int result;
+            TaskDialog(_window->Hwnd(), _instance, TEXT("Mashiro"),
+                       std::format(TEXT("Save {}"), _file->GetFilename().wstring()).c_str(), TEXT("dsqdqs"),
+                       TDCBF_YES_BUTTON | TDCBF_NO_BUTTON | TDCBF_CANCEL_BUTTON, TD_WARNING_ICON, &result);
+            switch (result) {
+            case IDYES: {
+                const auto result = Save();
+                if (!result) {
+                    return;
+                }
+                break;
+            }
+            case IDNO:
+                break;
+            case IDCANCEL:
+                return;
+            }
+        }
+    }
+
+    DestroyWindow(_window->Hwnd());
 }

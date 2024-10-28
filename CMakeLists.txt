@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.21)
 
 project(mashiro 
-    VERSION 0.0.1 
+    VERSION 0.0.2 
     DESCRIPTION "Mashiro is a simple infinite canvas raster painting app"
     HOMEPAGE_URL "https://github.com/smilecraft4/Mashiro"
     LANGUAGES CXX 
@@ -30,6 +30,8 @@ add_executable(mashiro WIN32
     src/Viewport.cpp
     src/Viewport.cpp
     src/Window.cpp
+    src/mashiro.exe.manifest
+    src/Inputs.cpp
 )
 
 target_compile_definitions(mashiro PRIVATE _UNICODE UNICODE)
