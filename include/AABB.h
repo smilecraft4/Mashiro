@@ -7,7 +7,6 @@ struct AABB {
     glm::vec2 max;
 
     static bool Overlap(AABB &a, AABB &b) noexcept {
-        // TODO
-        return true;
+        return (a.min.x <= b.max.x) && (a.max.x >= b.min.x) && (a.min.y <= b.max.y) && (a.max.y >= b.min.y);
     }
 };
