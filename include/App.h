@@ -1,11 +1,11 @@
 #pragma once
-#pragma once
 #include <memory>
 
 #include "Brush.h"
 #include "Canvas.h"
 #include "File.h"
 #include "Framework.h"
+#include "Inputs.h"
 #include "Preferences.h"
 #include "Renderer.h"
 #include "Viewport.h"
@@ -60,26 +60,34 @@ class App final {
     bool _brush_enabled;
 
     std::vector<tstring> _args;
+    // TODO: combine into simple app args
     std::unique_ptr<WindowClass> _window_class;
     std::unique_ptr<Window> _window;
+
     std::unique_ptr<Preferences> _preferences;
-    std::unique_ptr<Viewport> _viewport;
 
     std::unique_ptr<File> _file;
     std::unique_ptr<Canvas> _canvas;
+    std::unique_ptr<Viewport> _viewport;
 
+    // TODO: Convert to tools
     std::unique_ptr<Brush> _brush;
     std::unique_ptr<Framebuffer> _framebuffer;
 
+    // TODO: Delete all this unnecessary stuff
     std::unique_ptr<Uniformbuffer> _app_uniformbuffer;
     std::unique_ptr<Mesh> _mesh;
     std::unique_ptr<Texture> _texture;
     std::unique_ptr<Program> _program;
 
+    // Create a hiearical finite state machine instead that handles keybinds shortcuts and everything here
     bool _painting_mode;
     bool _navigation_mode;
 
-    // TODO: Create a class to handle this
+
+    std::unique_ptr<Inputs> _inputs;
+    // TODO: Create a class to handle Wintab as well as the mouse (this can a simple Stylus class that has a defined set
+    // of response that has parity on mouth and on pentablet)
     typedef struct {
         int maxPressure;
         COLORREF penColor;

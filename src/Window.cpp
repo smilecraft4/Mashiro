@@ -80,6 +80,11 @@ LRESULT Window::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
     LRESULT lResult = 0L;
     auto app = App::Get();
 
+    auto value = app->_inputs->HandleEvents(hwnd, msg, wparam, lparam);
+    if (value.has_value()) {
+        return value.value();
+    }
+
     // Accelerators (Shortcuts)
     if (msg == WM_COMMAND) {
         switch (LOWORD(wparam)) {
@@ -585,7 +590,7 @@ WindowClass::WindowClass(HINSTANCE instance, const tstring &name) : _instance(in
 
     WNDCLASSEX wc{};
     wc.cbSize = sizeof(WNDCLASSEX);
-    wc.style = CS_HREDRAW | CS_VREDRAW | CS_OWNDC;
+    wc.style = CS_HREDRAW | CS_VREDRAW | CS_OWNDC | CS_DBLCLKS;
     wc.lpfnWndProc = WindowClassProc;
     wc.cbClsExtra = 0;
     wc.cbWndExtra = 0;
