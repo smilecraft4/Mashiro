@@ -10,6 +10,8 @@
 // This is a singleton class as only one instance of input can be listenned to
 // TODO: fully support the mouse without break changes
 
+// TODO: directly handling events may be more easir but if the runtime is not fast enough there will be visible lag so
+// maybe instead using a deferred method like with events is better
 #define MS_STYLUSMOVE 0x0500
 #define MS_STYLUSBUTTON 0x0501
 #define MS_STYLUSDOWN 0x0502
@@ -19,15 +21,15 @@
 #define MS_STYLUSHOVER 0x0506 // FIXME: This event is not firing & I don't know why :c
 #define MS_STYLUSWHEEL 0x0507
 
-class Inputs {
+class Stylus {
   public:
-    Inputs(const Inputs &) = delete;
-    Inputs(Inputs &&) = delete;
-    Inputs &operator=(const Inputs &) = delete;
-    Inputs &operator=(Inputs &&) = delete;
+    Stylus(const Stylus &) = delete;
+    Stylus(Stylus &&) = delete;
+    Stylus &operator=(const Stylus &) = delete;
+    Stylus &operator=(Stylus &&) = delete;
 
-    Inputs() = default;
-    ~Inputs() = default;
+    Stylus() = default;
+    ~Stylus() = default;
 
     bool HandleEvents(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam, LRESULT *result);
 

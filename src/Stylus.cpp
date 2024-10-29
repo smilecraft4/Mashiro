@@ -1,4 +1,4 @@
-#include "Inputs.h"
+#include "Stylus.h"
 #include "Log.h"
 #include <format>
 
@@ -8,7 +8,7 @@
 
 #include "pktdef.h"
 
-bool Inputs::HandleEvents(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam, LRESULT *result) {
+bool Stylus::HandleEvents(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam, LRESULT *result) {
     _wheel_x = 0.0;
     _wheel_y = 0.0;
 
@@ -221,7 +221,8 @@ bool Inputs::HandleEvents(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam, LRE
     return false;
 }
 
-void Inputs::GetInputData(LPARAM &lparam) {
+void Stylus::GetInputData(LPARAM &lparam) {
+    _previous_packet = _current_packet;
 
     _control = GetKeyState(VK_CONTROL);
     _shift = GetKeyState(VK_SHIFT);

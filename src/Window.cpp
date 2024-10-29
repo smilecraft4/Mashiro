@@ -69,7 +69,7 @@ LRESULT Window::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
     auto app = App::Get();
 
     LRESULT result = 0;
-    if (app->_inputs->HandleEvents(hwnd, msg, wparam, lparam, &result)) {
+    if (app->_stylus->HandleEvents(hwnd, msg, wparam, lparam, &result)) {
         return result;
     }
 

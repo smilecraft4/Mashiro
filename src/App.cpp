@@ -17,7 +17,7 @@ App::App(HINSTANCE instance, int show_cmd) : _instance(instance), _show_cmd(show
 
     SetPaintingMode();
 
-    _inputs = std::make_unique<Inputs>();
+    _stylus = std::make_unique<Stylus>();
 
     // InitSettings
     _window_class = std::make_unique<WindowClass>(_instance, TEXT("Mashiro"));

@@ -5,9 +5,9 @@
 #include "Canvas.h"
 #include "File.h"
 #include "Framework.h"
-#include "Inputs.h"
 #include "Preferences.h"
 #include "Renderer.h"
+#include "Stylus.h"
 #include "Viewport.h"
 #include "Window.h"
 
@@ -76,5 +76,5 @@ class App final {
     bool _painting_mode;
     bool _navigation_mode;
 
-    std::unique_ptr<Inputs> _inputs;
+    std::unique_ptr<Stylus> _stylus;
 };

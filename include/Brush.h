@@ -19,6 +19,7 @@ class Brush {
 public:
 	static void Init();
 
+	// TODO: use stylus input packet directly
 	struct BrushData {
 		// TODO: Convert this data to canvas coord
 		float pressure;
