@@ -31,7 +31,7 @@ add_executable(mashiro WIN32
     src/Viewport.cpp
     src/Window.cpp
     src/mashiro.exe.manifest
-    src/Inputs.cpp
+    src/Stylus.cpp
 )
 
 target_compile_definitions(mashiro PRIVATE _UNICODE UNICODE)
