@@ -1,15 +1,6 @@
 #pragma once
-#include "Framework.h"
-#include <filesystem>
-#include <glm/gtc/type_ptr.hpp>
-#include <glm/mat4x4.hpp>
-#include <glm/vec2.hpp>
-#include <glm/vec3.hpp>
-#include <glm/vec4.hpp>
-#include <initializer_list>
-#include <span>
-#include <unordered_map>
-#include <unordered_set>
+
+HGLRC InitRenderer(HDC hdc);
 
 class Uniformbuffer {
   public:
@@ -18,15 +9,15 @@ class Uniformbuffer {
     Uniformbuffer(Uniformbuffer &&other);
     Uniformbuffer &operator=(Uniformbuffer &&other);
 
-    Uniformbuffer(const tstring &name, GLuint binding);
+    Uniformbuffer(const std::wstring &name, GLuint binding);
     ~Uniformbuffer();
 
-    static std::unique_ptr<Uniformbuffer> Create(const tstring &name, GLuint binding, GLsizei size, GLvoid *data);
+    static std::unique_ptr<Uniformbuffer> Create(const std::wstring &name, GLuint binding, GLsizei size, GLvoid *data);
 
     void SetData(GLintptr offset, GLsizei size, GLvoid *data);
     GLuint GetBinding() const;
 
-    static GLuint GetBinding(const tstring &name);
+    static GLuint GetBinding(const std::wstring &name);
 
   private:
     void Release();
@@ -45,10 +36,10 @@ class Texture {
     Texture(Texture &&other);
     Texture &operator=(Texture &&other);
 
-    Texture(const tstring &name, GLsizei width, GLsizei height);
+    Texture(const std::wstring &name, GLsizei width, GLsizei height);
     ~Texture();
 
-    static std::unique_ptr<Texture> Create(const tstring &name, int width, int height);
+    static std::unique_ptr<Texture> Create(const std::wstring &name, int width, int height);
     void GenerateMipmaps();
 
     std::vector<uint32_t> ReadPixels() const;
@@ -87,7 +78,7 @@ class Mesh {
     Mesh();
     ~Mesh();
 
-    static std::unique_ptr<Mesh> Create(const tstring &name);
+    static std::unique_ptr<Mesh> Create(const std::wstring &name);
 
     void Render(GLenum mode, GLsizei count);
 
@@ -114,7 +105,7 @@ class Program {
     Program();
     ~Program();
 
-    static std::unique_ptr<Program> Create(const tstring &name);
+    static std::unique_ptr<Program> Create(const std::wstring &name);
 
     void AddShader(std::filesystem::path filename, GLenum type);
     void ClearShaderFilename();
@@ -148,12 +139,12 @@ class Framebuffer {
     Framebuffer &operator=(const Framebuffer &) = delete;
     Framebuffer(Framebuffer &&other);
     Framebuffer &operator=(Framebuffer &&other);
-    
+
     Framebuffer();
     ~Framebuffer();
 
     static void Init();
-    static std::unique_ptr<Framebuffer> Create(const tstring &name, int width, int height);
+    static std::unique_ptr<Framebuffer> Create(const std::wstring &name, int width, int height);
 
     void Resize(int width, int height);
     void Bind();
@@ -161,7 +152,6 @@ class Framebuffer {
     void Render();
 
   private:
-
     void Release();
 
     int _width;

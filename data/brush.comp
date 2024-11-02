@@ -36,12 +36,20 @@ layout(binding = 0, rgba8) uniform image2D tile_tex;
 
 layout(local_size_x = 16, local_size_y = 16, local_size_z = 1) in;
 void main() {
+	const float hardness = 1.0;
+	const float radius = 4.5;
+
 	const ivec2 tile_tex_pos = ivec2(gl_GlobalInvocationID.xy);
 	const vec2 pixel_pos = tile_data.coord * int(tile_data.size)+ tile_tex_pos;
 
 	for (uint i = 0; i < brush_datas_count; i++) { 
+
+		const float outer_radius = clamp(brushes_datas[i].pressure * radius, 0.01, radius);
+		const float inner_radius = clamp(outer_radius - (radius * hardness), 0.0, radius);
+		const float opacity = 1.0;
+
 		vec4 pixel = imageLoad(tile_tex, tile_tex_pos);
-		const float falloff = 1.0 - step(4.5 * brushes_datas[i].pressure , distance(brushes_datas[i].position, pixel_pos));
+		const float falloff = (1.0 - smoothstep(inner_radius, outer_radius, distance(brushes_datas[i].position, pixel_pos))) * opacity;
 		pixel = mix(pixel, brushes_datas[i].color, falloff * brushes_datas[i].color.a);
 		imageStore(tile_tex, tile_tex_pos, pixel);
 	}

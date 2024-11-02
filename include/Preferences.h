@@ -1,10 +1,5 @@
 #pragma once
 
-#include "Framework.h"
-#include <filesystem>
-#include <map>
-#include <queue>
-
 // TODO: Save preferences to .ini file in user folder %AppData% and load from it as well
 class Preferences {
   public:
@@ -21,8 +16,8 @@ class Preferences {
     void Load();
     void Save();
 
-    void SaveParameter(const tstring &key, const tstring &value);
-    tstring LoadParameter(const tstring &key);
+    void SaveParameter(const std::wstring &key, const std::wstring &value);
+    std::wstring LoadParameter(const std::wstring &key);
 
     int _tile_resolution;
     int _lazy_save_count;

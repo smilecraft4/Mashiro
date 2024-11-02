@@ -1,8 +1,5 @@
 #pragma once
 
-#include "Framework.h"
-#include <vector>
-
 class Tool {};
 class Preferences {};
 class Stylus {};
@@ -18,7 +15,7 @@ class App {
     App &operator=(const App &) = delete;
     App &operator=(App &&) = delete;
 
-    App(HINSTANCE hInstance, std::vector<tstring> args);
+    App(HINSTANCE hInstance, std::vector<std::wstring> args);
     ~App();
     void Run();
 
@@ -42,7 +39,7 @@ class App {
     void SaveAs();
 
   private:
-    std::vector<tstring> _args;
+    std::vector<std::wstring> _args;
 
     // Win32 Window
     HINSTANCE _instance;
@@ -56,7 +53,7 @@ class App {
 
     bool _fullscreen;
     RECT _window_rect;
-    tstring _title;
+    std::wstring _title;
 
     Preferences _preferences;
 };

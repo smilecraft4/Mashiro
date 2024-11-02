@@ -1,12 +1,9 @@
-#include "File.h"
+#include "pch.h"
+
 #include "App.h"
+#include "File.h"
 #include "Log.h"
 #include "Preferences.h"
-
-#include <fstream>
-#include <istream>
-#include <png.h>
-#include <streambuf>
 
 struct Context {
     std::span<uint8_t> ptr;
@@ -214,7 +211,7 @@ std::unique_ptr<File> File::Open(std::filesystem::path filename) {
         }
         file->_pngs[i].resize(_headers[i].len, 0);
         pos = fp.sgetn(reinterpret_cast<char *>(file->_pngs[i].data()), file->_pngs[i].size());
-        file->_textures_indexes.emplace(std::pair<int, int>{_headers[i].coord[0], _headers[i].coord[1]}, i);
+        file->_textures_indexes.emplace(std::pair<int, int>(_headers[i].coord[0], _headers[i].coord[1]), i);
     }
 
     fp.close();
@@ -261,7 +258,7 @@ void File::Save(std::filesystem::path filename) {
     _new = false;
 }
 
-tstring File::GetDisplayName() {
+std::wstring File::GetDisplayName() {
     if (!_saved || !App::Get()->_canvas->IsSaved()) {
         return std::format(TEXT("*{}"), _filename.filename().wstring());
     }

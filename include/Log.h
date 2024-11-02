@@ -1,5 +1,4 @@
 #pragma once
-#include "Framework.h"
 
 // TODO: Add macro for better trace optimization, is constexpr better
 
@@ -29,13 +28,13 @@ class Log {
     Log &operator=(Log &&) = delete;
 
     // TODO: Maybe coloring on this
-    static void Trace(const tstring &msg) noexcept;
-    static void Debug(const tstring &msg) noexcept;
-    static void Info(const tstring &msg) noexcept;
-    static void Warning(const tstring &msg) noexcept;
-    static void Error(const tstring &msg) noexcept;
-    static void Critical(const tstring &msg) noexcept;
-    static void Success(const tstring &msg) noexcept;
+    static void Trace(const std::wstring &msg) noexcept;
+    static void Debug(const std::wstring &msg) noexcept;
+    static void Info(const std::wstring &msg) noexcept;
+    static void Warning(const std::wstring &msg) noexcept;
+    static void Error(const std::wstring &msg) noexcept;
+    static void Critical(const std::wstring &msg) noexcept;
+    static void Success(const std::wstring &msg) noexcept;
 };
 
 #ifdef MS_TRACE

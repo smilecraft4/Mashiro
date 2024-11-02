@@ -1,5 +1,7 @@
-#include "Canvas.h"
+#include "pch.h"
+
 #include "App.h"
+#include "Canvas.h"
 #include "Log.h"
 #include "Preferences.h"
 #include "Viewport.h"
@@ -143,7 +145,7 @@ void Canvas::Paint(Brush *brush) {
 
     // Consider optimizing this to avoid needless save when no data was written
     _saved = false;
-    SetWindowText(App::Get()->_window->Hwnd(), App::Get()->_file->GetDisplayName().c_str());
+    SetWindowText(App::Get()->_window.hwnd, App::Get()->_file->GetDisplayName().c_str());
 }
 
 void Canvas::Render(Viewport *viewport) {

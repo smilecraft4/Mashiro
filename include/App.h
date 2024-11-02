@@ -1,15 +1,14 @@
 #pragma once
-#include <memory>
 
 #include "Brush.h"
 #include "Canvas.h"
 #include "File.h"
-#include "Framework.h"
 #include "Preferences.h"
 #include "Renderer.h"
 #include "Stylus.h"
 #include "Viewport.h"
-#include "Window.h"
+
+// #include "Window.h"
 
 // TODO: Change this from a app like this to a window
 // TODO: Create wrapper for Wintab
@@ -24,10 +23,11 @@ class App final {
     App &operator=(const App &) = delete;
     App &operator=(App &&) = delete;
 
-    App(HINSTANCE instance, int show_cmd);
-    ~App() noexcept;
+    App(HINSTANCE instance, LPTSTR cmd_line, int show_cmd);
+    ~App();
+    int Run();
 
-    void Run() const;
+    LRESULT CALLBACK AppWindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam);
 
     bool Save();
     bool SaveAs();
@@ -37,26 +37,38 @@ class App final {
 
     void EnableBrush(bool enable);
 
-    void Init(HWND hwnd);
     void Update();
     void Render();
     void Refresh();
 
     void SetNavigationMode();
-
     void SetPaintingMode();
+
+  private:
+    HWND InitWindow();
+    HGLRC InitOpenGL();
+    void Resize(int width, int height);
+    void Move(int x, int y);
 
   public:
     HINSTANCE _instance;
-    int _show_cmd;
+    std::wstring _cmd_line;
+    int _cmd_show;
     bool _brush_enabled;
 
-    std::vector<tstring> _args;
-    // TODO: combine into simple app args
-    std::unique_ptr<WindowClass> _window_class;
-    std::unique_ptr<Window> _window;
+    struct Window {
+        HACCEL accel;
+        HWND hwnd;
+        HDC dc;
+        HGLRC glrc;
 
-    std::unique_ptr<Preferences> _preferences;
+        int x;
+        int y;
+        int width;
+        int height;
+    } _window;
+
+    std::unique_ptr<Preferences> _prefs;
 
     std::unique_ptr<File> _file;
     std::unique_ptr<Canvas> _canvas;

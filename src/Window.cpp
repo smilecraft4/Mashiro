@@ -1,30 +1,126 @@
-#include "Window.h"
+#include "pch.h"
+
 #include "App.h"
 #include "Log.h"
 #include "Resource.h"
-
-#include <format>
-#include <stdexcept>
+#include "Window.h"
 
 // TODO: Maybe move the initialisation of OpenGL to the renderer rather than here, like Renderer::Init(HWND)
 
-constexpr auto WGL_CONTEXT_MAJOR_VERSION_ARB = 0x2091;
-constexpr auto WGL_CONTEXT_MINOR_VERSION_ARB = 0x2092;
-constexpr auto WGL_CONTEXT_PROFILE_MASK_ARB = 0x9126;
-constexpr auto WGL_CONTEXT_CORE_PROFILE_BIT_ARB = 0x00000001;
-
 typedef HGLRC WINAPI wglCreateContextAttribsARB_type(HDC hdc, HGLRC hShareContext, const int *attribList);
 wglCreateContextAttribsARB_type *wglCreateContextAttribsARB;
+
+#define WGL_CONTEXT_MAJOR_VERSION_ARB 0x2091
+#define WGL_CONTEXT_MINOR_VERSION_ARB 0x2092
+#define WGL_CONTEXT_PROFILE_MASK_ARB 0x9126
+#define WGL_CONTEXT_CORE_PROFILE_BIT_ARB 0x00000001
 
 typedef BOOL WINAPI wglChoosePixelFormatARB_type(HDC hdc, const int *piAttribIList, const FLOAT *pfAttribFList,
                                                  UINT nMaxFormats, int *piFormats, UINT *nNumFormats);
 wglChoosePixelFormatARB_type *wglChoosePixelFormatARB;
 
-Window::Window(int width, int height, const tstring &title)
+#define WGL_DRAW_TO_WINDOW_ARB 0x2001
+#define WGL_ACCELERATION_ARB 0x2003
+#define WGL_SUPPORT_OPENGL_ARB 0x2010
+#define WGL_DOUBLE_BUFFER_ARB 0x2011
+#define WGL_PIXEL_TYPE_ARB 0x2013
+#define WGL_COLOR_BITS_ARB 0x2014
+#define WGL_DEPTH_BITS_ARB 0x2022
+#define WGL_STENCIL_BITS_ARB 0x2023
+
+#define WGL_FULL_ACCELERATION_ARB 0x2027
+#define WGL_TYPE_RGBA_ARB 0x202B
+
+void Window::InitOpenGL() {
+    WNDCLASS window_class = {
+        .style = CS_HREDRAW | CS_VREDRAW | CS_OWNDC,
+        .lpfnWndProc = DefWindowProc,
+        .hInstance = GetModuleHandle(0),
+        .lpszClassName = L"Dummy_WGL_djuasiodwa",
+    };
+
+    if (!RegisterClass(&window_class)) {
+        LOG_CRITICAL(L"Failed to register dummy OpenGL window.");
+        exit(-1);
+    }
+
+    HWND dummy_window = CreateWindowEx(0, window_class.lpszClassName, L"Dummy OpenGL Window", 0, CW_USEDEFAULT,
+                                       CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, 0, 0, window_class.hInstance, 0);
+
+    if (!dummy_window) {
+        LOG_CRITICAL(L"Failed to create dummy OpenGL window.");
+        exit(-1);
+    }
+
+    HDC dummy_dc = GetDC(dummy_window);
+
+    PIXELFORMATDESCRIPTOR pfd{};
+    pfd.nSize = sizeof(pfd);
+    pfd.nVersion = 1;
+    pfd.iPixelType = PFD_TYPE_RGBA;
+    pfd.dwFlags = PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL | PFD_DOUBLEBUFFER;
+    pfd.cColorBits = 32;
+    pfd.cAlphaBits = 8;
+    pfd.iLayerType = PFD_MAIN_PLANE;
+    pfd.cDepthBits = 24;
+    pfd.cStencilBits = 8;
+
+    int pixel_format = ChoosePixelFormat(dummy_dc, &pfd);
+    if (!pixel_format) {
+        LOG_CRITICAL(L"Failed to find a suitable pixel format.");
+        exit(-1);
+    }
+    if (!SetPixelFormat(dummy_dc, pixel_format, &pfd)) {
+        LOG_CRITICAL(L"Failed to set the pixel format.");
+        exit(-1);
+    }
+
+    HGLRC dummy_context = wglCreateContext(dummy_dc);
+    if (!dummy_context) {
+        LOG_CRITICAL(L"Failed to create a dummy OpenGL rendering context.");
+        exit(-1);
+    }
+
+    if (!wglMakeCurrent(dummy_dc, dummy_context)) {
+        LOG_CRITICAL(L"Failed to activate dummy OpenGL rendering context.");
+        exit(-1);
+    }
+
+    wglCreateContextAttribsARB = (wglCreateContextAttribsARB_type *)wglGetProcAddress("wglCreateContextAttribsARB");
+    wglChoosePixelFormatARB = (wglChoosePixelFormatARB_type *)wglGetProcAddress("wglChoosePixelFormatARB");
+
+    wglMakeCurrent(dummy_dc, 0);
+    wglDeleteContext(dummy_context);
+    ReleaseDC(dummy_window, dummy_dc);
+    DestroyWindow(dummy_window);
+}
+
+Window::Window(int width, int height, const std::wstring &title)
     : _width(width), _height(height), _title(title), _dpi(96.0f), _fullscreen(false) {
 
-    _hdc = nullptr;
-    _hrc = nullptr;
+    _accel = LoadAccelerators(GetModuleHandle(NULL), MAKEINTRESOURCE(IDR_ACCELERATOR1));
+
+    const std::wstring menu_name = L"MashiroMenu";
+    const std::wstring class_name = L"MashiroClass";
+
+    WNDCLASSEX wc{};
+    wc.cbSize = sizeof(WNDCLASSEX);
+    wc.style = CS_HREDRAW | CS_VREDRAW | CS_OWNDC | CS_DBLCLKS;
+    wc.lpfnWndProc = WindowClassProc;
+    wc.cbClsExtra = 0;
+    wc.cbWndExtra = 0;
+    wc.hInstance = instance;
+    wc.hCursor = LoadCursor(nullptr, IDC_ARROW);
+    wc.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
+    wc.lpszMenuName = menu_name.c_str();
+    wc.lpszClassName = class_name.c_str();
+    wc.hIconSm = LoadIcon(instance, MAKEINTRESOURCE(ID_ICON));
+    wc.hIcon = LoadIcon(instance, MAKEINTRESOURCE(ID_ICON));
+
+    ATOM class_result = RegisterClassEx(&wc);
+    if (!class_result) {
+        throw std::runtime_error("RegisterClass failed");
+    }
 
     constexpr DWORD ex_style = 0;
     constexpr DWORD style = WS_OVERLAPPEDWINDOW;
@@ -33,14 +129,64 @@ Window::Window(int width, int height, const tstring &title)
     rect.right = _width;
     rect.bottom = _height;
     AdjustWindowRectEx(&rect, style, FALSE, ex_style);
-    const int client_width = rect.right - rect.left;
-    const int client_height = rect.bottom - rect.top;
 
     _hwnd = CreateWindowEx(ex_style, App::Get()->_window_class->Name().c_str(), _title.c_str(), style, CW_USEDEFAULT,
-                           CW_USEDEFAULT, client_width, client_height, nullptr, nullptr,
+                           CW_USEDEFAULT, rect.right - rect.left, rect.bottom - rect.top, nullptr, nullptr,
                            App::Get()->_window_class->Instance(), this);
     if (!_hwnd) {
-        WIN32_CHECK(GetLastError());
+        LOG_CRITICAL(L"Failed to create window");
+        exit(-1);
+    }
+
+    int pixel_format_attribs[] = {WGL_DRAW_TO_WINDOW_ARB,
+                                  GL_TRUE,
+                                  WGL_SUPPORT_OPENGL_ARB,
+                                  GL_TRUE,
+                                  WGL_DOUBLE_BUFFER_ARB,
+                                  GL_TRUE,
+                                  WGL_ACCELERATION_ARB,
+                                  WGL_FULL_ACCELERATION_ARB,
+                                  WGL_PIXEL_TYPE_ARB,
+                                  WGL_TYPE_RGBA_ARB,
+                                  WGL_COLOR_BITS_ARB,
+                                  32,
+                                  WGL_DEPTH_BITS_ARB,
+                                  24,
+                                  WGL_STENCIL_BITS_ARB,
+                                  8,
+                                  0};
+
+    _hdc = GetDC(_hwnd);
+
+    int pixel_format{};
+    UINT num_formats{};
+    wglChoosePixelFormatARB(_hdc, pixel_format_attribs, 0, 1, &pixel_format, &num_formats);
+    if (!num_formats) {
+        LOG_CRITICAL(L"Failed to set the OpenGL 4.2 pixel format.");
+        exit(-1);
+    }
+
+    PIXELFORMATDESCRIPTOR pfd{};
+    DescribePixelFormat(_hdc, pixel_format, sizeof(pfd), &pfd);
+    if (!SetPixelFormat(_hdc, pixel_format, &pfd)) {
+        LOG_CRITICAL(L"Failed to set the OpenGL 4.2 pixel format.");
+        exit(-1);
+    }
+
+    int _attribs[] = {
+        WGL_CONTEXT_MAJOR_VERSION_ARB,    4, WGL_CONTEXT_MINOR_VERSION_ARB, 2, WGL_CONTEXT_PROFILE_MASK_ARB,
+        WGL_CONTEXT_CORE_PROFILE_BIT_ARB, 0,
+    };
+
+    _hglrc = wglCreateContextAttribsARB(real_dc, 0, _attribs);
+    if (!_hglrc) {
+        LOG_CRITICAL(L"Failed to create OpenGL 4.2 context.");
+        exit(-1);
+    }
+
+    if (!wglMakeCurrent(_hdc, _hglrc)) {
+        LOG_CRITICAL(L"Failed to activate OpenGL 4.2 rendering context.");
+        exit(-1);
     }
 }
 
@@ -180,12 +326,12 @@ LRESULT Window::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
     }
     case WM_MOVE: {
         Move((short)LOWORD(lparam), (short)HIWORD(lparam));
-        Render();
+        Render(app->_canvas);
         return 0;
     }
     case WM_SIZE: {
         Resize(LOWORD(lparam), HIWORD(lparam));
-        Render();
+        Render(app->_canvas);
         return 0;
     }
     case WM_CLOSE: {
@@ -241,7 +387,7 @@ void Window::Create() {
         throw std::runtime_error("Failed to load glad");
     }
 
-    LOG_INFO(std::format(TEXT("OpenGL version: {}"), ConvertString((char *)glGetString(GL_VERSION))));
+    LOG_INFO(std::format(TEXT("OpenGL version: {}"), Converstd::wstring((char *)glGestd::wstring(GL_VERSION))));
 
     typedef BOOL(APIENTRY * PFNWGLSWAPINTERVALPROC)(int);
     PFNWGLSWAPINTERVALPROC wglSwapIntervalEXT = 0;
@@ -270,7 +416,7 @@ void Window::Move(int x, int y) {
     _y = y;
 }
 
-void Window::Render() {
+void Window::Render(Canvas *canvas) {
     glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
 
@@ -349,12 +495,12 @@ LRESULT CALLBACK WindowClass::WindowClassProc(HWND hwnd, UINT msg, WPARAM wparam
     return DefWindowProc(hwnd, msg, wparam, lparam);
 }
 
-WindowClass::WindowClass(HINSTANCE instance, const tstring &name) : _instance(instance) {
+WindowClass::WindowClass(HINSTANCE instance, const std::wstring &name) : _instance(instance) {
 
     _accel = LoadAccelerators(_instance, MAKEINTRESOURCE(IDR_ACCELERATOR1));
 
-    const tstring menu_name = std::format(TEXT("{}Menu"), name).c_str();
-    const tstring class_name = std::format(TEXT("{}Class"), name).c_str();
+    const std::wstring menu_name = std::format(TEXT("{}Menu"), name).c_str();
+    const std::wstring class_name = std::format(TEXT("{}Class"), name).c_str();
 
     WNDCLASSEX wc{};
     wc.cbSize = sizeof(WNDCLASSEX);
@@ -365,7 +511,6 @@ WindowClass::WindowClass(HINSTANCE instance, const tstring &name) : _instance(in
     wc.hInstance = instance;
     wc.hCursor = LoadCursor(nullptr, IDC_ARROW);
     wc.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
-    ;
     wc.lpszMenuName = menu_name.c_str();
     wc.lpszClassName = class_name.c_str();
     wc.hIconSm = LoadIcon(instance, MAKEINTRESOURCE(ID_ICON));
@@ -432,7 +577,7 @@ ATOM WindowClass::Atom() const noexcept {
     return _atom;
 }
 
-tstring WindowClass::Name() const noexcept {
+std::wstring WindowClass::Name() const noexcept {
     return _name;
 }
 

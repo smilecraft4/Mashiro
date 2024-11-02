@@ -1,9 +1,5 @@
 #pragma once
 
-#include "Framework.h"
-
-#include <optional>
-
 // Handle mouse movement
 // Handle Wintab events
 
@@ -44,7 +40,7 @@ class Stylus {
 
     Packet _current_packet, _previous_packet;
 
-  private:
+  public:
     int _x;
     int _y;
     int _width;

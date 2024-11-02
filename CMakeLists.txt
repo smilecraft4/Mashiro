@@ -16,23 +16,25 @@ find_package(ZLIB REQUIRED)
 find_package(Catch2 3 REQUIRED)
 
 add_executable(mashiro WIN32
+    src/Mashiro.rc
+    src/mashiro.exe.manifest
+    # src/Framework.cpp
+    src/Log.cpp
     src/AABB.cpp
     src/App.cpp
     src/Brush.cpp
     src/Canvas.cpp  
     src/File.cpp
-    src/Framework.cpp
-    src/Log.cpp
     src/Main.cpp
-    src/Mashiro.rc
     src/Preferences.cpp
     src/Renderer.cpp
     src/Viewport.cpp
-    src/Viewport.cpp
-    src/Window.cpp
-    src/mashiro.exe.manifest
+    src/Utils.cpp
+    # src/Window.cpp
     src/Stylus.cpp
 )
+
+target_precompile_headers(mashiro PRIVATE src/pch.h)
 
 target_compile_definitions(mashiro PRIVATE _UNICODE UNICODE)
 

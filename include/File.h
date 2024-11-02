@@ -1,11 +1,4 @@
 #pragma once
-#include "Framework.h"
-#include <filesystem>
-#include <glm/vec2.hpp>
-#include <map>
-#include <optional>
-#include <span>
-#include <vector>
 
 /* Custom file format for Mashiro
  * INFO
@@ -45,7 +38,7 @@ class File {
     bool IsNew() const;
 
     void Save(std::filesystem::path filename);
-    tstring GetDisplayName();
+    std::wstring GetDisplayName();
 
     std::vector<std::pair<int, int>> GetSavedTileLocation() const;
     int GetTileResolution() const;

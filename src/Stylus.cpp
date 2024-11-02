@@ -1,6 +1,7 @@
-#include "Stylus.h"
+#include "pch.h"
+
 #include "Log.h"
-#include <format>
+#include "Stylus.h"
 
 // Use digitizint context
 #include "msgpack.h"

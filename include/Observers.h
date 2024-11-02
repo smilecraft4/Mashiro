@@ -1,8 +1,5 @@
 #pragma once
 
-#include <functional>
-#include <unordered_set>
-
 template <typename... Args>
 class Observer;
 template <typename... Args>

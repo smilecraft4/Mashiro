@@ -2,13 +2,6 @@
 #include "AABB.h"
 #include "Brush.h"
 #include "File.h"
-#include "Framework.h"
-
-#include <filesystem>
-#include <glm/vec2.hpp>
-#include <map>
-#include <memory>
-#include <vector>
 
 class Viewport;
 
@@ -42,21 +35,21 @@ class Canvas {
     void Render(Viewport *viewport);
 
     /* Layers */
-    // tstring AddLayer(const tstring& name, int order, int mode);
-    // void DeleteLayer(const tstring& id);
-    // void SetLayerName(const tstring& id, const tstring& name);
-    // tstring GetLayerName(const tstring& id);
-    // void SelectLayer(const tstring& id);
-    // void DeselectLayer(const tstring& id);
-    // void MergeLayers(std::span<tstring> ids);
-    // void SetSelectedLayers(std::span<tstring> ids);
-    // std::vector<tstring> GetSelectedLayers();
-    // void SetLayerMode(const tstring& id, int mode);
-    // int GetLayerMode(const tstring& id);
-    // void SetLayerOrder(const tstring& id, int order);
-    // int GetLayerOrder(const tstring& id);
-    // void SetLayerVisibility(const tstring& id, bool visible);
-    // bool GetLayerVisibility(const tstring& id);
+    // std::wstring AddLayer(const std::wstring& name, int order, int mode);
+    // void DeleteLayer(const std::wstring& id);
+    // void SetLayerName(const std::wstring& id, const std::wstring& name);
+    // std::wstring GetLayerName(const std::wstring& id);
+    // void SelectLayer(const std::wstring& id);
+    // void DeselectLayer(const std::wstring& id);
+    // void MergeLayers(std::span<std::wstring> ids);
+    // void SetSelectedLayers(std::span<std::wstring> ids);
+    // std::vector<std::wstring> GetSelectedLayers();
+    // void SetLayerMode(const std::wstring& id, int mode);
+    // int GetLayerMode(const std::wstring& id);
+    // void SetLayerOrder(const std::wstring& id, int order);
+    // int GetLayerOrder(const std::wstring& id);
+    // void SetLayerVisibility(const std::wstring& id, bool visible);
+    // bool GetLayerVisibility(const std::wstring& id);
 
     /* Tiles */
 
